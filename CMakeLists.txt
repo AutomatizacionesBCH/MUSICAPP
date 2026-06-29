@@ -28,6 +28,22 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(JUCE)
 
 # --------------------------------------------------------------------------
+# Assets de la UI WebView (HTML/CSS/JS) + la librería JS frontend de JUCE,
+# embebidos con binary data. La JS de JUCE se copia a ui/juce/ en configure.
+# --------------------------------------------------------------------------
+file(COPY
+  "${juce_SOURCE_DIR}/modules/juce_gui_extra/native/javascript/index.js"
+  "${juce_SOURCE_DIR}/modules/juce_gui_extra/native/javascript/check_native_interop.js"
+  DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/ui/juce")
+
+juce_add_binary_data(MusicAppAssets SOURCES
+  ui/index.html
+  ui/style.css
+  ui/app.js
+  ui/juce/index.js
+  ui/juce/check_native_interop.js)
+
+# --------------------------------------------------------------------------
 # NeuralAmpModelerCore como librería estática propia.
 # Las arquitecturas (WaveNet/LSTM/…) se auto-registran con objetos estáticos a
 # nivel de archivo. Para que el linker NO los descarte hay que enlazar nam_core
@@ -112,6 +128,7 @@ target_link_libraries(MusicApp
     juce::juce_audio_utils
     juce::juce_dsp          # juce::dsp::Convolution para el Cabinet IR
     juce::juce_gui_extra    # juce::WebBrowserComponent (UI WebView)
+    MusicAppAssets          # HTML/CSS/JS embebidos (binary data)
   PUBLIC
     juce::juce_recommended_config_flags
 )

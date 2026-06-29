@@ -31,6 +31,7 @@ out*.wav
 node_modules/
 dist/
 .cache/
+ui/juce/            # librería JS de JUCE, copiada en configure por CMake
 
 # ---- Contenido de terceros: NO redistribuir (se accede vía la API de tone3000) ----
 *.nam

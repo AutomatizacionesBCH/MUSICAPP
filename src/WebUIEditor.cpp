@@ -1,121 +1,36 @@
 #include "WebUIEditor.h"
-#include <cstring>
+#include "ModelBrowser.h"
+#include "BinaryData.h"
 #include <cstddef>
+#include <cstring>
 
-//==============================================================================
-// Assets de la UI (embebidos como literales para no depender de binary-data).
-//==============================================================================
 namespace
 {
-    const char* kIndexHtml = R"HTML(<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="style.css"></head>
-<body>
-  <header class="topbar">
-    <span class="logo"></span>
-    <span class="title">MUSIC APP</span>
-    <span class="sub">cadena de senal</span>
-  </header>
-  <main class="rack">
-    <section class="block io">
-      <div class="bhead"><span>IN</span></div>
-      <div class="knob"></div><div class="kval">0.0 dB</div>
-    </section>
-    <div class="arrow"></div>
-    <section class="block amp on">
-      <div class="bhead"><span>AMP &middot; NAM</span></div>
-      <div class="photo"><img id="amp-photo" src="amp-photo" alt=""></div>
-      <div class="bname" id="amp-name">&mdash;</div>
-      <button class="change" id="amp-change">Cambiar</button>
-    </section>
-    <div class="arrow"></div>
-    <section class="block cab">
-      <div class="bhead"><span>CAB &middot; IR</span><span class="toggle" id="ir-toggle">OFF</span></div>
-      <div class="photo"><img id="cab-photo" src="cab-photo" alt=""></div>
-      <div class="bname" id="cab-name">&mdash;</div>
-      <button class="change" id="cab-change">Cambiar</button>
-    </section>
-    <div class="arrow"></div>
-    <section class="block fx">
-      <div class="bhead"><span>REVERB</span></div>
-      <div class="fxicon">&#8767;</div>
-      <div class="knob"></div><div class="kval">0%</div>
-    </section>
-    <div class="arrow"></div>
-    <section class="block io">
-      <div class="bhead"><span>OUT</span></div>
-      <div class="knob"></div><div class="kval">0.0 dB</div>
-    </section>
-  </main>
-  <script src="app.js"></script>
-</body></html>
-)HTML";
-
-    const char* kStyleCss = R"CSS(
-:root{--bg:#0E0F11;--panel:#17191C;--module:#1E2125;--border:#2A2E33;
-      --text:#E6E8EA;--muted:#9AA0A6;--dim:#5A6068;--accent:#FF7A29;}
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;background:var(--bg);color:var(--text);
-  font-family:'Segoe UI',Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-.topbar{display:flex;align-items:center;gap:10px;padding:12px 18px;
-  border-bottom:1px solid var(--border);background:var(--panel);}
-.logo{width:14px;height:14px;border-radius:3px;background:var(--accent);}
-.title{font-weight:700;letter-spacing:.5px;}
-.sub{color:var(--muted);font-size:12px;}
-.rack{display:flex;align-items:stretch;padding:26px 18px;overflow-x:auto;}
-.block{background:var(--module);border:1px solid var(--border);border-radius:10px;
-  padding:12px;min-width:166px;display:flex;flex-direction:column;align-items:center;gap:8px;}
-.block.io{min-width:100px;justify-content:flex-start;}
-.bhead{width:100%;display:flex;justify-content:space-between;align-items:center;
-  font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--muted);}
-.amp.on .bhead span:first-child,.cab .bhead span:first-child{color:var(--accent);}
-.photo{width:150px;height:104px;border-radius:8px;overflow:hidden;background:#15171a;border:1px solid var(--border);}
-.photo img{width:100%;height:100%;object-fit:cover;display:block;}
-.bname{font-size:11px;color:var(--text);text-align:center;max-width:150px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.change{background:var(--panel);color:var(--text);border:1px solid var(--border);
-  border-radius:5px;padding:5px 12px;font-size:11px;cursor:pointer;}
-.change:hover{border-color:var(--accent);}
-.toggle{font-size:10px;font-weight:700;color:var(--dim);border:1px solid var(--border);
-  border-radius:4px;padding:1px 7px;cursor:pointer;}
-.toggle.on{color:#1a0e06;background:var(--accent);border-color:var(--accent);}
-.knob{width:48px;height:48px;border-radius:50%;margin-top:8px;position:relative;
-  background:conic-gradient(from 216deg,var(--accent) 0deg 144deg,var(--border) 144deg 288deg,transparent 288deg 360deg);}
-.knob::after{content:"";position:absolute;inset:6px;border-radius:50%;background:#23262B;}
-.kval{font-size:11px;color:var(--muted);font-family:'Cascadia Mono',Consolas,monospace;}
-.fxicon{font-size:30px;color:var(--accent);height:104px;display:flex;align-items:center;}
-.arrow{align-self:center;width:24px;height:2px;background:var(--border);position:relative;flex:0 0 auto;}
-.arrow::after{content:"";position:absolute;right:-1px;top:-3px;border:4px solid transparent;border-left-color:var(--border);}
-)CSS";
-
-    const char* kAppJs = R"JS(
-async function refresh(){
-  try{
-    const r = await fetch('state.json?_=' + Date.now());
-    const s = await r.json();
-    document.getElementById('amp-name').textContent = s.model || '(ninguno)';
-    document.getElementById('cab-name').textContent = s.ir || '(ninguno)';
-    const t = document.getElementById('ir-toggle');
-    if (s.irOn) { t.classList.add('on'); t.textContent = 'ON'; }
-    else { t.classList.remove('on'); t.textContent = 'OFF'; }
-    document.getElementById('amp-photo').src = 'amp-photo?_=' + Date.now();
-    document.getElementById('cab-photo').src = 'cab-photo?_=' + Date.now();
-  } catch (e) {}
-}
-refresh();
-)JS";
-
     juce::WebBrowserComponent::Resource bytesOf (const void* data, size_t n, juce::String mime)
     {
         const auto* b = static_cast<const std::byte*> (data);
         return { std::vector<std::byte> (b, b + n), std::move (mime) };
     }
 
-    juce::WebBrowserComponent::Resource textOf (const char* s, juce::String mime)
+    // Ventana popup que hospeda el ModelBrowser; al cerrar avisa por callback.
+    class BrowserWindow : public juce::DocumentWindow
     {
-        return bytesOf (s, std::strlen (s), std::move (mime));
-    }
+    public:
+        BrowserWindow (juce::Component* content, std::function<void()> onClose)
+            : juce::DocumentWindow ("Biblioteca de modelos", juce::Colour (0xff0E0F11),
+                                    juce::DocumentWindow::closeButton),
+              mOnClose (std::move (onClose))
+        {
+            setUsingNativeTitleBar (true);
+            setContentOwned (content, true);
+            setResizable (true, false);
+            centreWithSize (560, 460);
+            setVisible (true);
+        }
+        void closeButtonPressed() override { if (mOnClose) mOnClose(); }
+    private:
+        std::function<void()> mOnClose;
+    };
 }
 
 //==============================================================================
@@ -127,9 +42,43 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                      .withUserDataFolder (juce::File::getSpecialLocation (juce::File::tempDirectory)
                                             .getChildFile ("MusicAppWebView2")))
                  .withNativeIntegrationEnabled()
-                 .withResourceProvider ([this] (const auto& url) { return provide (url); }))
+                 .withResourceProvider ([this] (const auto& url) { return provide (url); })
+                 .withOptionsFrom (inputRelay)
+                 .withOptionsFrom (outputRelay)
+                 .withOptionsFrom (reverbRelay)
+                 .withOptionsFrom (irRelay)
+                 .withNativeFunction ("loadModel",
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     { openModelBrowser(); complete (juce::var()); })
+                 .withNativeFunction ("loadIR",
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     { chooseIR(); complete (juce::var()); }))
 {
     addAndMakeVisible (webView);
+
+    inAtt  = std::make_unique<juce::WebSliderParameterAttachment> (
+                 *processorRef.apvts.getParameter ("inputGain"),  inputRelay,  nullptr);
+    outAtt = std::make_unique<juce::WebSliderParameterAttachment> (
+                 *processorRef.apvts.getParameter ("outputGain"), outputRelay, nullptr);
+    revAtt = std::make_unique<juce::WebSliderParameterAttachment> (
+                 *processorRef.apvts.getParameter ("reverbMix"),  reverbRelay, nullptr);
+    irAtt  = std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                 *processorRef.apvts.getParameter ("irOn"), irRelay, nullptr);
+
+    // Carpeta de librería persistida (para el ModelBrowser).
+    juce::PropertiesFile::Options opts;
+    opts.applicationName     = "Music App";
+    opts.filenameSuffix      = "settings";
+    opts.folderName          = "Music App";
+    opts.osxLibrarySubFolder = "Application Support";
+    mSettings = std::make_unique<juce::PropertiesFile> (opts);
+
+    juce::File libFolder (mSettings->getValue ("modelLibraryFolder", {}));
+    if (! libFolder.isDirectory())
+        libFolder = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                      .getChildFile ("Music App").getChildFile ("models");
+    mLibrary.setFolder (libFolder);
+
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
     setSize (900, 320);
 }
@@ -137,6 +86,60 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
 void WebUIEditor::resized()
 {
     webView.setBounds (getLocalBounds());
+}
+
+void WebUIEditor::notifyChanged()
+{
+    webView.emitEventIfBrowserIsVisible ("modelChanged", juce::var());
+}
+
+//==============================================================================
+void WebUIEditor::openModelBrowser()
+{
+    if (mBrowserWindow != nullptr) { mBrowserWindow->toFront (true); return; }
+
+    auto* browser = new ModelBrowser (mLibrary);
+    browser->setSize (560, 460);
+    browser->onLoad = [this] (juce::File f)
+    {
+        if (processorRef.loadNamModel (f))
+            notifyChanged();
+    };
+    browser->onFolderChanged = [this] (juce::File dir)
+    {
+        if (mSettings != nullptr)
+        {
+            mSettings->setValue ("modelLibraryFolder", dir.getFullPathName());
+            mSettings->saveIfNeeded();
+        }
+    };
+
+    juce::Component::SafePointer<WebUIEditor> safe (this);
+    mBrowserWindow.reset (new BrowserWindow (browser, [safe]
+    {
+        juce::MessageManager::callAsync ([safe]
+        {
+            if (auto* e = safe.getComponent())
+                e->mBrowserWindow.reset();
+        });
+    }));
+}
+
+void WebUIEditor::chooseIR()
+{
+    auto startDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                      .getChildFile ("Music App").getChildFile ("irs");
+    if (! startDir.isDirectory())
+        startDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
+
+    mChooser = std::make_unique<juce::FileChooser> ("Elige un Cabinet IR (.wav)", startDir, "*.wav");
+    mChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this] (const juce::FileChooser& fc)
+        {
+            const auto f = fc.getResult();
+            if (f != juce::File() && processorRef.loadIR (f))
+                notifyChanged();
+        });
 }
 
 //==============================================================================
@@ -156,7 +159,6 @@ juce::String WebUIEditor::stateJson() const
     juce::DynamicObject::Ptr o = new juce::DynamicObject();
     o->setProperty ("model", processorRef.getLoadedModelName());
     o->setProperty ("ir",    processorRef.getLoadedIRName());
-    o->setProperty ("irOn",  processorRef.getLoadedIRName().isNotEmpty()); // visual; el real va en Etapa 2
     return juce::JSON::toString (juce::var (o.get()));
 }
 
@@ -175,9 +177,17 @@ std::optional<WebUIEditor::Resource> WebUIEditor::provide (const juce::String& u
     if (path.isEmpty() || path == "/")
         path = "/index.html";
 
-    if (path == "/index.html") return textOf (kIndexHtml, "text/html");
-    if (path == "/style.css")  return textOf (kStyleCss,  "text/css");
-    if (path == "/app.js")     return textOf (kAppJs,     "text/javascript");
+    if (path == "/index.html")
+        return bytesOf (BinaryData::index_html, (size_t) BinaryData::index_htmlSize, "text/html");
+    if (path == "/style.css")
+        return bytesOf (BinaryData::style_css, (size_t) BinaryData::style_cssSize, "text/css");
+    if (path == "/app.js")
+        return bytesOf (BinaryData::app_js, (size_t) BinaryData::app_jsSize, "text/javascript");
+    if (path == "/juce/index.js")
+        return bytesOf (BinaryData::index_js, (size_t) BinaryData::index_jsSize, "text/javascript");
+    if (path == "/juce/check_native_interop.js")
+        return bytesOf (BinaryData::check_native_interop_js,
+                        (size_t) BinaryData::check_native_interop_jsSize, "text/javascript");
 
     if (path == "/state.json")
     {
@@ -201,12 +211,11 @@ std::optional<WebUIEditor::Resource> WebUIEditor::provide (const juce::String& u
                 return bytesOf (mb.getData(), mb.getSize(), mime);
             }
         }
-        // Placeholder SVG (sin foto)
         static const char* svg =
             R"SVG(<svg xmlns="http://www.w3.org/2000/svg" width="150" height="104">)SVG"
             R"SVG(<rect width="100%" height="100%" fill="#15171a"/>)SVG"
             R"SVG(<text x="50%" y="52%" fill="#5A6068" font-family="sans-serif" font-size="12" text-anchor="middle">sin foto</text></svg>)SVG";
-        return textOf (svg, "image/svg+xml");
+        return bytesOf (svg, std::strlen (svg), "image/svg+xml");
     }
 
     return std::nullopt;

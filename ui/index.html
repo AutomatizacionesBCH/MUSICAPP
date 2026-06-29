@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="style.css"></head>
+<body>
+  <header class="topbar">
+    <span class="logo"></span>
+    <span class="title">MUSIC APP</span>
+    <span class="sub">cadena de senal</span>
+  </header>
+  <main class="rack">
+    <section class="block io">
+      <div class="bhead"><span>IN</span></div>
+      <div class="knob" id="k-in"></div><div class="kval" id="v-in">0.0 dB</div>
+    </section>
+    <div class="arrow"></div>
+    <section class="block amp on">
+      <div class="bhead"><span>AMP &middot; NAM</span></div>
+      <div class="photo"><img id="amp-photo" src="amp-photo" alt=""></div>
+      <div class="bname" id="amp-name">&mdash;</div>
+      <button class="change" id="amp-change">Cambiar</button>
+    </section>
+    <div class="arrow"></div>
+    <section class="block cab">
+      <div class="bhead"><span>CAB &middot; IR</span><span class="toggle" id="ir-toggle">OFF</span></div>
+      <div class="photo"><img id="cab-photo" src="cab-photo" alt=""></div>
+      <div class="bname" id="cab-name">&mdash;</div>
+      <button class="change" id="cab-change">Cambiar</button>
+    </section>
+    <div class="arrow"></div>
+    <section class="block fx">
+      <div class="bhead"><span>REVERB</span></div>
+      <div class="fxicon">&#8767;</div>
+      <div class="knob" id="k-rev"></div><div class="kval" id="v-rev">0%</div>
+    </section>
+    <div class="arrow"></div>
+    <section class="block io">
+      <div class="bhead"><span>OUT</span></div>
+      <div class="knob" id="k-out"></div><div class="kval" id="v-out">0.0 dB</div>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body></html>

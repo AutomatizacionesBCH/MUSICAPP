@@ -51,9 +51,15 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   `IN → AMP·NAM → CAB·IR → REVERB → OUT` estilo Helix/AmpliTube (HTML/CSS embebidos, resource provider)
   con **fotos** del amp/cab (resueltas de `<modelo>/images/image_*`). **Windows:** necesita el SDK
   WebView2 (NuGet, lo baja `build.ps1` a `.webview2/`) y `WebView2Loader.dll` junto al exe (lo copia
-  CMake post-build; sin ella JUCE cae al backend IE). **Etapa 2 (pendiente):** cablear los controles
-  (relays `WebSliderRelay`/`WebToggleButtonRelay` ↔ APVTS) y la carga vía función nativa. Mientras,
-  la UI nativa (`PluginEditor`) sigue en el repo como referencia.
+  CMake post-build; sin ella JUCE cae al backend IE).
+- **UI WebView — Ciclo 1, Etapa 2 ✅ (2026-06-29):** controles **cableados al motor**. Relays
+  `WebSliderRelay` (input/output/reverb) + `WebToggleButtonRelay` (irOn) ↔ APVTS vía
+  `WebSliderParameterAttachment`/`WebToggleButtonParameterAttachment`; los knobs HTML son arrastrables.
+  Funciones nativas `loadModel`/`loadIR` (JS → abre el `ModelBrowser`/FileChooser; al cargar, el motor
+  emite `modelChanged` y la UI refresca nombre+foto). Assets (HTML/CSS/JS + la librería JS de JUCE)
+  embebidos con `juce_add_binary_data`. Binding verificado: la UI arranca con los valores reales de los
+  params (knob IN a 0 dB/50%, IR OFF). **`createEditor()` ahora devuelve `WebUIEditor`** (la UI nativa
+  `PluginEditor` queda como referencia). **Siguiente:** buscador de tonos in-WebView, drive, presets.
 
 ### Receta de integración de NAM Core (verificada al compilar)
 - Fuentes a compilar: `libs/NeuralAmpModelerCore/NAM/*.cpp` + `NAM/*/*.cpp` (incluye `wavenet/`).
