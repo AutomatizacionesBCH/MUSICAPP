@@ -30,11 +30,15 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
 
     styleKnob (inputGain);
     styleKnob (outputGain);
+    styleKnob (reverbMix);
+    reverbMix.setTextValueSuffix ("");           // es mezcla 0..1, no dB
     addAndMakeVisible (inputGain);
     addAndMakeVisible (outputGain);
+    addAndMakeVisible (reverbMix);
 
     inAtt  = std::make_unique<SliderAttachment> (processorRef.apvts, "inputGain",  inputGain);
     outAtt = std::make_unique<SliderAttachment> (processorRef.apvts, "outputGain", outputGain);
+    revAtt = std::make_unique<SliderAttachment> (processorRef.apvts, "reverbMix",  reverbMix);
 
     auto setupCaption = [this] (juce::Label& l, const juce::String& t)
     {
@@ -45,6 +49,7 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
         addAndMakeVisible (l);
     };
     setupCaption (inputLabel,  "INPUT");
+    setupCaption (reverbLabel, "REVERB");
     setupCaption (outputLabel, "OUTPUT");
 
     auto styleButton = [this] (juce::TextButton& b, bool accent)
@@ -62,7 +67,7 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
     setSize (520, 300);
 
     ensureInputUnmuted();   // amp sim: la entrada es la guitarra, no hay feedback real
-    startTimer (1000);      // y la mantenemos desmuteada por si se re-silencia al reconfigurar
+    startTimerHz (30);      // desmuteo + refresco de medidores
 }
 
 void MusicAppAudioProcessorEditor::ensureInputUnmuted()
@@ -77,6 +82,12 @@ void MusicAppAudioProcessorEditor::ensureInputUnmuted()
 void MusicAppAudioProcessorEditor::timerCallback()
 {
     ensureInputUnmuted();
+
+    // Caída suave de los medidores (pico instantáneo con release).
+    const float decay = 0.80f;
+    mInLevel  = juce::jmax (processorRef.getInPeak(),  mInLevel  * decay);
+    mOutLevel = juce::jmax (processorRef.getOutPeak(), mOutLevel * decay);
+    repaint();
 }
 
 //==============================================================================
@@ -137,7 +148,7 @@ void MusicAppAudioProcessorEditor::paint (juce::Graphics& g)
 {
     g.fillAll (cBg);
 
-    // Barra inferior tipo "IO" (decorativa por ahora)
+    // Barra inferior con medidores In/Out (comportamiento AIDA-X: verde->ámbar->rojo).
     auto bottom = getLocalBounds().removeFromBottom (56);
     g.setColour (cPanel);
     g.fillRect (bottom);
@@ -145,10 +156,31 @@ void MusicAppAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawLine ((float) bottom.getX(), (float) bottom.getY(),
                 (float) bottom.getRight(), (float) bottom.getY(), 1.0f);
 
+    auto bar = bottom.reduced (14, 11);
+    auto inRow = bar.removeFromTop (bar.getHeight() / 2 - 2);
+    bar.removeFromTop (4);
+    drawMeter (g, inRow, mInLevel,  "IN");
+    drawMeter (g, bar,   mOutLevel, "OUT");
+}
+
+void MusicAppAudioProcessorEditor::drawMeter (juce::Graphics& g, juce::Rectangle<int> r,
+                                              float level, const juce::String& label)
+{
     g.setColour (cText2);
-    g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText ("Conecta tu interfaz y abre \"Preferencias de audio\" para elegir entrada, sample rate y buffer.",
-                bottom.reduced (14, 0), juce::Justification::centredLeft, true);
+    g.setFont (juce::Font (juce::FontOptions (9.0f, juce::Font::bold)));
+    g.drawText (label, r.removeFromLeft (30), juce::Justification::centredLeft);
+
+    g.setColour (cBg);
+    g.fillRoundedRectangle (r.toFloat(), 3.0f);
+    g.setColour (cBorder);
+    g.drawRoundedRectangle (r.toFloat(), 3.0f, 1.0f);
+
+    const float lvl = juce::jlimit (0.0f, 1.0f, level);
+    auto fill = r.reduced (1).toFloat();
+    fill.setWidth (fill.getWidth() * lvl);
+    const juce::Colour c = lvl > 0.95f ? cRed : (lvl > 0.70f ? cAmber : cGreen);
+    g.setColour (c);
+    g.fillRoundedRectangle (fill, 2.0f);
 }
 
 void MusicAppAudioProcessorEditor::resized()
@@ -171,13 +203,17 @@ void MusicAppAudioProcessorEditor::resized()
 
     r.removeFromTop (8);
     auto knobs = r;
-    auto kw = knobs.getWidth() / 2;
+    const int kw = knobs.getWidth() / 3;
 
     auto kIn = knobs.removeFromLeft (kw);
     inputLabel.setBounds (kIn.removeFromTop (16));
-    inputGain.setBounds (kIn.reduced (10, 4));
+    inputGain.setBounds (kIn.reduced (8, 4));
+
+    auto kRev = knobs.removeFromLeft (kw);
+    reverbLabel.setBounds (kRev.removeFromTop (16));
+    reverbMix.setBounds (kRev.reduced (8, 4));
 
     auto kOut = knobs;
     outputLabel.setBounds (kOut.removeFromTop (16));
-    outputGain.setBounds (kOut.reduced (10, 4));
+    outputGain.setBounds (kOut.reduced (8, 4));
 }

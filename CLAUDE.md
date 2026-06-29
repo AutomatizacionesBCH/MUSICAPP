@@ -21,8 +21,12 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
 - **Fase 1 — Milestone 1 ✅ CONFIRMADO EN VIVO (2026-06-29):** la app JUCE standalone
   (`build/app/MusicApp_artefacts/Release/Standalone/Music App.app`, JUCE 8.0.14) **procesa la
   guitarra en tiempo real** a través de NAM, vía interfaz **Arturia MiniFuse 2** → suena. ✔️
-  Cadena actual: input (suma L+R a mono) → NAM (normalizado por loudness) → limitador → output.
-  **Siguiente:** cadena IR + efectos, o el buscador tone3000.
+  Cadena actual: input (suma L+R a mono) → NAM (normalizado por loudness) → **reverb (post-FX)** →
+  limitador → output. UI con knobs INPUT/REVERB/OUTPUT y **medidores In/Out** (timer 30 Hz).
+- **Fase 1 — Milestone 2a ✅ (2026-06-29):** añadidos medidores In/Out y reverb (`juce::Reverb`).
+  Modelo por defecto temporal = `Dunlop Eric Johnson Fuzz 01.nam` (única captura real local; los
+  example_models son fixtures rotos). **Siguiente (2b):** Cabinet IR (`juce::dsp::Convolution`, necesita
+  un archivo IR — bajar gratis de tone3000), drive pre-amp, y selector de modelos en la UI.
 - El catálogo de tonos se integrará vía la **API oficial de tone3000** (Fase 2); por ahora todo local.
 
 ### Receta de integración de NAM Core (verificada al compilar)

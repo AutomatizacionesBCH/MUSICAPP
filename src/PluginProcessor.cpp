@@ -26,6 +26,7 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
 {
     mInputGainDb  = apvts.getRawParameterValue ("inputGain");
     mOutputGainDb = apvts.getRawParameterValue ("outputGain");
+    mReverbMix    = apvts.getRawParameterValue ("reverbMix");
 
     // Carga inicial del modelo de ejemplo (el audio aún no corre, así que es
     // seguro asignar mModel directamente; el Reset se hará en prepareToPlay).
@@ -60,6 +61,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout MusicAppAudioProcessor::crea
         juce::ParameterID { "outputGain", 1 }, "Output Gain",
         juce::NormalisableRange<float> (-24.0f, 24.0f, 0.1f), 0.0f));
 
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbMix", 1 }, "Reverb",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+
     return layout;
 }
 
@@ -91,6 +96,10 @@ void MusicAppAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     const size_t cap = (size_t) juce::jmax (samplesPerBlock, 8192);
     mInScratch.assign  (cap, 0.0);
     mOutScratch.assign (cap, 0.0);
+    mWork.assign       (cap, 0.0f);
+
+    mReverb.setSampleRate (sampleRate);
+    mReverb.reset();
 
     if (mModel != nullptr)
         prepareModel (*mModel);
@@ -125,18 +134,21 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     const int n = juce::jmin (numSamples, (int) mInScratch.size());
 
-    // Guitarra: sumamos TODAS las entradas a mono, así funciona esté en input 1/L
-    // o input 2/R de la interfaz. Copiamos a scratch (con input gain) ANTES de
-    // escribir las salidas para no corromper la lectura.
+    // 1) Suma de TODAS las entradas a mono (la guitarra puede estar en input 1/L o
+    //    2/R) + medición de pico de entrada. Copiamos ANTES de escribir salidas.
     const int numIn = juce::jmin (getTotalNumInputChannels(), numCh);
+    float inPeak = 0.0f;
     for (int i = 0; i < n; ++i)
     {
         double s = 0.0;
         for (int ch = 0; ch < numIn; ++ch)
             s += (double) buffer.getReadPointer (ch)[i];
+        inPeak = juce::jmax (inPeak, std::abs ((float) s));
         mInScratch[(size_t) i] = s * inGain;
     }
+    mInPeak.store (inPeak);
 
+    // 2) Amplificador NAM.
     if (mModel != nullptr)
     {
         double* inPtr[1]  = { mInScratch.data() };
@@ -145,30 +157,46 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     }
     else
     {
-        // Sin modelo: passthrough.
-        for (int i = 0; i < n; ++i)
+        for (int i = 0; i < n; ++i)   // sin modelo: passthrough
             mOutScratch[(size_t) i] = mInScratch[(size_t) i];
     }
 
-    // SEGURIDAD: sanitizamos la salida una vez. NaN/Inf -> 0 y recorte a [-1,1]
-    // para que la app NUNCA pueda mandar una señal descontrolada a la interfaz
-    // (lo que pegaba los medidores y silenciaba todo). El recorte protege oídos
-    // y hardware ante un modelo/entrada que se dispare.
+    // 3) Normalización por loudness -> buffer float de trabajo.
     const float normGain = mNormGain.load();
     for (int i = 0; i < n; ++i)
-    {
-        float v = (float) (mOutScratch[(size_t) i] * normGain * outGain);
-        if (! std::isfinite (v)) v = 0.0f;
-        mOutScratch[(size_t) i] = (double) juce::jlimit (-1.0f, 1.0f, v);
-    }
+        mWork[(size_t) i] = (float) (mOutScratch[(size_t) i] * normGain);
 
-    // Volcamos el resultado (mono, ya sanitizado) a todas las salidas.
+    // 4) Reverb (post-FX, mono).
+    const float mix = mReverbMix != nullptr ? mReverbMix->load() : 0.0f;
+    juce::Reverb::Parameters rp;
+    rp.roomSize   = 0.6f;
+    rp.damping    = 0.5f;
+    rp.width      = 1.0f;
+    rp.freezeMode = 0.0f;
+    rp.wetLevel   = mix;
+    rp.dryLevel   = 1.0f - mix;
+    mReverb.setParameters (rp);
+    mReverb.processMono (mWork.data(), n);
+
+    // 5) Output gain + SEGURIDAD (NaN/Inf->0, recorte +-1 para no mandar nunca una
+    //    señal descontrolada a la interfaz) + medición de pico de salida.
+    float outPeak = 0.0f;
+    for (int i = 0; i < n; ++i)
+    {
+        float v = mWork[(size_t) i] * outGain;
+        if (! std::isfinite (v)) v = 0.0f;
+        v = juce::jlimit (-1.0f, 1.0f, v);
+        mWork[(size_t) i] = v;
+        outPeak = juce::jmax (outPeak, std::abs (v));
+    }
+    mOutPeak.store (outPeak);
+
+    // 6) Volcamos el mono procesado a todas las salidas.
     for (int ch = 0; ch < numCh; ++ch)
     {
         float* out = buffer.getWritePointer (ch);
         for (int i = 0; i < n; ++i)
-            out[i] = (float) mOutScratch[(size_t) i];
-        // Silencio si el buffer fuese mayor que el scratch (no debería pasar).
+            out[i] = mWork[(size_t) i];
         for (int i = n; i < numSamples; ++i)
             out[i] = 0.0f;
     }

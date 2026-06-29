@@ -48,6 +48,10 @@ public:
     bool loadNamModel (const juce::File& file);
     juce::String getLoadedModelName() const { return mLoadedModelName; }
 
+    // Medidores (read-only para la UI): pico [0..1] del último bloque.
+    float getInPeak()  const { return mInPeak.load(); }
+    float getOutPeak() const { return mOutPeak.load(); }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void prepareModel (nam::DSP& model) const;
@@ -65,9 +69,16 @@ private:
 
     // NAM trabaja en double: scratch pre-asignado para no alocar en el callback.
     std::vector<double> mInScratch, mOutScratch;
+    std::vector<float>  mWork;            // buffer float de trabajo (post-NAM: reverb/output)
+
+    juce::Reverb mReverb;                 // post-FX (mono)
+
+    std::atomic<float> mInPeak  { 0.0f };
+    std::atomic<float> mOutPeak { 0.0f };
 
     std::atomic<float>* mInputGainDb  = nullptr;
     std::atomic<float>* mOutputGainDb = nullptr;
+    std::atomic<float>* mReverbMix    = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessor)
 };
