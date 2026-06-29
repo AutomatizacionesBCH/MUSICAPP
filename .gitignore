@@ -1,0 +1,46 @@
+# ---- Build ----
+build/
+cmake-build-*/
+*.o
+*.obj
+*.a
+*.lib
+*.dylib
+*.dll
+*.exe
+
+# ---- Artefactos de audio / plugins ----
+*.vst3
+*.component
+*.app
+*.dmg
+
+# ---- Renders y scratch del spike ----
+scratch/
+out*.wav
+
+# ---- macOS / IDE ----
+.DS_Store
+.vscode/
+.idea/
+*.xcodeproj/
+*.xcworkspace/
+
+# ---- UI web (frontend WebView, más adelante) ----
+node_modules/
+dist/
+.cache/
+
+# ---- Contenido de terceros: NO redistribuir (se accede vía la API de tone3000) ----
+*.nam
+*.namb
+*.aidax
+*.wav
+# carpetas de descargas de tonos
+Dunlop Eric Johnson Fuzz Face/
+
+# ---- Config local de Claude ----
+.claude/
+
+# ---- Notas ----
+# libs/NeuralAmpModelerCore es un submódulo git (ver .gitmodules).
