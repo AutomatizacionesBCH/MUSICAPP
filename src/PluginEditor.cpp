@@ -106,10 +106,16 @@ void MusicAppAudioProcessorEditor::styleKnob (juce::Slider& s)
 //==============================================================================
 void MusicAppAudioProcessorEditor::chooseModel()
 {
+    // Directorio inicial multiplataforma: ~/Documents/Music App/models si existe,
+    // si no la carpeta de música del usuario (sin rutas específicas de SO).
+    auto startDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                      .getChildFile ("Music App").getChildFile ("models");
+    if (! startDir.isDirectory())
+        startDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
+
     chooser = std::make_unique<juce::FileChooser> (
         "Elige un modelo NAM (.nam)",
-        juce::File ("/Users/automatizacionesbch/Desktop/AGENTES IA/Music App/libs/"
-                    "NeuralAmpModelerCore/example_models"),
+        startDir,
         "*.nam");
 
     const auto flags = juce::FileBrowserComponent::openMode

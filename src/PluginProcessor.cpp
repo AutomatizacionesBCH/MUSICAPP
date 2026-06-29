@@ -7,14 +7,41 @@
 //==============================================================================
 namespace
 {
-    // TEMPORAL (spike): modelo REAL del usuario (captura de tone3000) para que la
-    // app suene desde el arranque. OJO: los example_models de NAM Core son fixtures
-    // de prueba con salida no calibrada (wavenet_a2_max da ~10x) — no usarlos.
+    // Carpeta de modelos por defecto, MULTIPLATAFORMA (Windows y macOS):
+    //   ~/Documents/Music App/models
+    // Coloca ahí uno o varios .nam para que la app cargue uno al arrancar.
+    juce::File defaultModelsDir()
+    {
+        return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                 .getChildFile ("Music App")
+                 .getChildFile ("models");
+    }
+
+    // Resuelve el modelo por defecto SIN rutas específicas de usuario/SO:
+    //   1) variable de entorno MUSICAPP_DEFAULT_MODEL (ruta a un .nam), o
+    //   2) el primer .nam dentro de defaultModelsDir(), o
+    //   3) ninguno -> la app arranca en passthrough hasta cargar uno desde la UI.
+    // OJO: los example_models de NAM Core son fixtures sin calibrar (no usarlos).
     // En Fase 2 esto lo reemplaza el buscador de tone3000.
-    const juce::File kDefaultModel {
-        "/Users/automatizacionesbch/Desktop/AGENTES IA/Music App/"
-        "Dunlop Eric Johnson Fuzz Face/Dunlop Eric Johnson Fuzz 01.nam"
-    };
+    juce::File resolveDefaultModel()
+    {
+        const auto env = juce::SystemStats::getEnvironmentVariable ("MUSICAPP_DEFAULT_MODEL", {});
+        if (env.isNotEmpty())
+        {
+            const juce::File f (env);
+            if (f.existsAsFile())
+                return f;
+        }
+
+        const auto dir = defaultModelsDir();
+        if (dir.isDirectory())
+        {
+            const auto nams = dir.findChildFiles (juce::File::findFiles, false, "*.nam");
+            if (! nams.isEmpty())
+                return nams.getReference (0);
+        }
+        return {};
+    }
 }
 
 //==============================================================================
@@ -28,16 +55,17 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
     mOutputGainDb = apvts.getRawParameterValue ("outputGain");
     mReverbMix    = apvts.getRawParameterValue ("reverbMix");
 
-    // Carga inicial del modelo de ejemplo (el audio aún no corre, así que es
+    // Carga inicial del modelo por defecto (el audio aún no corre, así que es
     // seguro asignar mModel directamente; el Reset se hará en prepareToPlay).
-    if (kDefaultModel.existsAsFile())
+    const juce::File defaultModel = resolveDefaultModel();
+    if (defaultModel.existsAsFile())
     {
         try
         {
-            mModel = nam::get_dsp (std::filesystem::path (kDefaultModel.getFullPathName().toStdString()));
+            mModel = nam::get_dsp (std::filesystem::path (defaultModel.getFullPathName().toStdString()));
             if (mModel != nullptr)
             {
-                mLoadedModelName = kDefaultModel.getFileName();
+                mLoadedModelName = defaultModel.getFileName();
                 mNormGain.store (computeNormGain (*mModel));
             }
         }

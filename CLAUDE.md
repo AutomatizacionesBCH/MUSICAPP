@@ -28,6 +28,12 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   example_models son fixtures rotos). **Siguiente (2b):** Cabinet IR (`juce::dsp::Convolution`, necesita
   un archivo IR — bajar gratis de tone3000), drive pre-amp, y selector de modelos en la UI.
 - El catálogo de tonos se integrará vía la **API oficial de tone3000** (Fase 2); por ahora todo local.
+- **Port a Windows (en curso, 2026-06-29):** codebase unificado cross-platform (un solo `src/`).
+  CMake con bloques MSVC (`/utf-8 /bigobj _USE_MATH_DEFINES`); eliminadas las rutas hardcodeadas de
+  macOS — el modelo por defecto y el FileChooser ahora son multiplataforma (`resolveDefaultModel`:
+  env var `MUSICAPP_DEFAULT_MODEL` → `~/Documents/Music App/models/*.nam` → passthrough). Nueva
+  estructura `platform/{windows,macos}/` con scripts de build. **Pendiente:** compilar/ejecutar en
+  Windows (instalando VS2022 + CMake) y validar Eigen/NAM bajo MSVC.
 
 ### Receta de integración de NAM Core (verificada al compilar)
 - Fuentes a compilar: `libs/NeuralAmpModelerCore/NAM/*.cpp` + `NAM/*/*.cpp` (incluye `wavenet/`).
@@ -185,40 +191,65 @@ para este caso. Aun así, conviene mantener el core limpio/portable:
 
 ## Estructura del proyecto
 
+**Codebase ÚNICO y compartido entre plataformas** (es para lo que sirve JUCE). El
+mismo `src/` compila en Windows y macOS; lo específico de cada SO vive en `platform/`.
+
 ```
 Music App/
 ├─ CLAUDE.md                   ← fuente de verdad (este archivo)
 ├─ README.md                   ← overview para GitHub
-├─ CMakeLists.txt              ← build: JUCE 8.0.14 (FetchContent) + NAM Core + app standalone
+├─ CMakeLists.txt              ← build COMPARTIDO: JUCE 8.0.14 (FetchContent) + NAM Core + standalone
+│                                 (bloques if(APPLE)/if(MSVC) para lo específico de SO)
 ├─ .gitignore
-├─ src/
-│  ├─ PluginProcessor.{h,cpp}  ← motor headless: input → NAM → output (estado en APVTS)
+├─ src/                        ← CÓDIGO COMPARTIDO (un solo codebase, sin duplicar por SO)
+│  ├─ PluginProcessor.{h,cpp}  ← motor headless: input → NAM → reverb → output (estado en APVTS)
 │  └─ PluginEditor.{h,cpp}     ← UI del spike (gains, cargar .nam, preferencias de audio)
+├─ platform/                   ← SOLO lo específico de cada plataforma (no duplica código)
+│  ├─ windows/  build.ps1 + README.md   (MSVC, ASIO, packaging)
+│  └─ macos/    build.sh  + README.md   (clang, entitlements, packaging)
 ├─ libs/
-│  └─ NeuralAmpModelerCore/    ← motor NAM (MIT) + Eigen/nlohmann (submódulos) — pendiente convertir a submódulo git
+│  └─ NeuralAmpModelerCore/    ← submódulo git (NAM MIT) + Eigen/nlohmann/AudioDSPTools (anidados)
 ├─ design/mockups/main-screen.html  ← mockup de la UI definitiva (semilla de la futura WebView)
 └─ build/                      ← artefactos (gitignored)
-   ├─ namcore/tools/           ← render / benchmodel (Milestone 0)
-   └─ app/…/Music App.app      ← app standalone (Milestone 1)
 ```
 
-## Cómo construir y ejecutar (desktop macOS)
+## Flujo multiplataforma (git) — clave
 
-Requisitos: **CMake** (3.30.5 oficial en `/usr/local/bin`), **Apple Command Line Tools** (clang).
-JUCE se descarga solo la 1ª vez (FetchContent).
+**No se duplica el código por plataforma.** La "sincronización" entre Windows y macOS
+(y luego Android/iOS) **es git**, no copiar carpetas:
 
+1. Desarrollas en **Windows** → `git commit` → `git push`.
+2. En el **Mac** → `git pull` → el MISMO código compila nativo (es cross-platform).
+3. Lo específico de cada SO se aísla con `if(WIN32)/if(APPLE)` en CMake y
+   `#if JUCE_WINDOWS/JUCE_MAC` en código, dentro de `platform/`.
+4. Trabajo de port/experimental → rama `windows-port` (o `feature/*`) → merge a `main`.
+
+> Móvil (futuro): se reutiliza el core C++ de `src/`; se añade `platform/ios` y
+> `platform/android` con el I/O de audio + UI de cada uno. El core NO se reescribe.
+
+## Cómo construir y ejecutar
+
+**Windows** (VS 2022 con "Desktop development with C++" + CMake):
+```powershell
+git clone --recursive https://github.com/AutomatizacionesBCH/MUSICAPP.git
+powershell -ExecutionPolicy Bypass -File platform\windows\build.ps1
+# -> build\app\MusicApp_artefacts\Release\Standalone\Music App.exe
+```
+
+**macOS** (CMake + Command Line Tools):
 ```bash
-cd "Music App"
-cmake -S . -B build/app -DCMAKE_BUILD_TYPE=Release          # configurar (1ª vez baja JUCE)
-cmake --build build/app --target MusicApp_Standalone -j4    # compilar
-open "build/app/MusicApp_artefacts/Release/Standalone/Music App.app"   # ejecutar
+git clone --recursive https://github.com/AutomatizacionesBCH/MUSICAPP.git
+platform/macos/build.sh
+# -> open "build/app/MusicApp_artefacts/Release/Standalone/Music App.app"
 ```
 
-Al ejecutar: conectar la interfaz → **Preferencias de audio** (entrada / 48 kHz / buffer 128) → el
-modelo A2 de ejemplo carga solo y se toca en vivo. ⚠️ El path del modelo por defecto está
-**hardcodeado** en `PluginProcessor.cpp` (temporal del spike; lo reemplaza el buscador tone3000 en Fase 2).
+La 1ª vez se descarga JUCE (FetchContent) → tarda. Al ejecutar: conectar la interfaz
+→ **Preferencias de audio** (entrada / 48 kHz / buffer 128) → tocar en vivo.
 
-Render offline (Milestone 0): `build/namcore/tools/render <model.nam> <in.wav> [out.wav]`.
+**Modelo por defecto al arrancar** (multiplataforma, sin rutas hardcodeadas — resuelto en
+`PluginProcessor.cpp::resolveDefaultModel`): `MUSICAPP_DEFAULT_MODEL` (env var) →
+primer `.nam` en `~/Documents/Music App/models/` → si no hay, *passthrough*. Lo reemplaza
+el buscador tone3000 en Fase 2.
 
 ## Plan por fases
 

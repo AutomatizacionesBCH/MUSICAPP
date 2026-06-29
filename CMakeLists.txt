@@ -39,6 +39,12 @@ target_compile_definitions(nam_core PUBLIC NAM_ENABLE_A2_FAST EIGEN_MPL2_ONLY)
 if (APPLE)
   target_compile_options(nam_core PRIVATE -stdlib=libc++)
 endif()
+if (MSVC)
+  # Windows/MSVC: /bigobj (Eigen+NAM templates generan objetos enormes),
+  # /utf-8 (literales con acentos en UTF-8), y _USE_MATH_DEFINES (M_PI desde <cmath>).
+  target_compile_options(nam_core PRIVATE /bigobj /utf-8)
+  target_compile_definitions(nam_core PRIVATE _USE_MATH_DEFINES)
+endif()
 
 # --------------------------------------------------------------------------
 # App (plugin con formato Standalone)
@@ -66,6 +72,11 @@ target_sources(MusicApp PRIVATE
 )
 
 target_compile_features(MusicApp PRIVATE cxx_std_20)
+
+if (MSVC)
+  target_compile_options(MusicApp PRIVATE /bigobj /utf-8)
+  target_compile_definitions(MusicApp PRIVATE _USE_MATH_DEFINES)
+endif()
 
 # MusicApp compila PluginProcessor.cpp (incluye headers de NAM) → necesita los includes/defines.
 # Los símbolos de NAM se resuelven en el link final contra nam_core.
