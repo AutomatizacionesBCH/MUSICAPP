@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.24)   # 3.24+ para $<LINK_LIBRARY:WHOLE_ARCHIVE,...>
 project(MusicApp VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -18,12 +18,27 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(JUCE)
 
 # --------------------------------------------------------------------------
-# NeuralAmpModelerCore (motor NAM, ya clonado en libs/)
+# NeuralAmpModelerCore como librería estática propia.
+# Las arquitecturas (WaveNet/LSTM/…) se auto-registran con objetos estáticos a
+# nivel de archivo. Para que el linker NO los descarte hay que enlazar nam_core
+# con WHOLE_ARCHIVE en el EJECUTABLE FINAL (ver más abajo). Sin esto, get_dsp
+# falla con "No config parser registered for architecture: WaveNet".
 # --------------------------------------------------------------------------
 set(NAM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libs/NeuralAmpModelerCore")
 file(GLOB NAM_SOURCES CONFIGURE_DEPENDS
   "${NAM_DIR}/NAM/*.cpp"
   "${NAM_DIR}/NAM/*/*.cpp")
+
+add_library(nam_core STATIC ${NAM_SOURCES})
+target_compile_features(nam_core PUBLIC cxx_std_20)
+target_include_directories(nam_core PUBLIC
+  "${NAM_DIR}"
+  "${NAM_DIR}/Dependencies/eigen"
+  "${NAM_DIR}/Dependencies/nlohmann")
+target_compile_definitions(nam_core PUBLIC NAM_ENABLE_A2_FAST EIGEN_MPL2_ONLY)
+if (APPLE)
+  target_compile_options(nam_core PRIVATE -stdlib=libc++)
+endif()
 
 # --------------------------------------------------------------------------
 # App (plugin con formato Standalone)
@@ -48,16 +63,16 @@ juce_generate_juce_header(MusicApp)
 target_sources(MusicApp PRIVATE
   src/PluginProcessor.cpp
   src/PluginEditor.cpp
-  ${NAM_SOURCES}
 )
 
 target_compile_features(MusicApp PRIVATE cxx_std_20)
 
+# MusicApp compila PluginProcessor.cpp (incluye headers de NAM) → necesita los includes/defines.
+# Los símbolos de NAM se resuelven en el link final contra nam_core.
 target_include_directories(MusicApp PRIVATE
   "${NAM_DIR}"
   "${NAM_DIR}/Dependencies/eigen"
-  "${NAM_DIR}/Dependencies/nlohmann"
-)
+  "${NAM_DIR}/Dependencies/nlohmann")
 
 target_compile_definitions(MusicApp PRIVATE
   NAM_ENABLE_A2_FAST
@@ -73,3 +88,9 @@ target_link_libraries(MusicApp
   PUBLIC
     juce::juce_recommended_config_flags
 )
+
+# Clave: WHOLE_ARCHIVE de nam_core en el ejecutable final → incluye TODOS los .o
+# (incluidos los registradores estáticos de WaveNet/LSTM/ConvNet/Linear).
+if (TARGET MusicApp_Standalone)
+  target_link_libraries(MusicApp_Standalone PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,nam_core>")
+endif()

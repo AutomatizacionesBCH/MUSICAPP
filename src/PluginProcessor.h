@@ -51,11 +51,13 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void prepareModel (nam::DSP& model) const;
+    static float computeNormGain (const nam::DSP& model);   // normalización por loudness
 
     // El modelo "vivo" lo posee el audio thread; los cambios se entregan por
     // staging atómico (cargar/Reset/prewarm se hacen fuera del audio thread).
     std::unique_ptr<nam::DSP> mModel;
     std::atomic<nam::DSP*> mStagedModel { nullptr };
+    std::atomic<float> mNormGain { 1.0f };   // ganancia de normalización por loudness del modelo
     juce::String mLoadedModelName;
 
     double mSampleRate { 48000.0 };

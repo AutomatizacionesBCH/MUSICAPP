@@ -13,7 +13,7 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
     titleLabel.setColour (juce::Label::textColourId, cAccent);
     addAndMakeVisible (titleLabel);
 
-    subtitleLabel.setText ("Spike · NAM en vivo", juce::dontSendNotification);
+    subtitleLabel.setText ("Spike - NAM en vivo", juce::dontSendNotification);
     subtitleLabel.setFont (juce::Font (juce::FontOptions (12.0f)));
     subtitleLabel.setColour (juce::Label::textColourId, cText2);
     addAndMakeVisible (subtitleLabel);
@@ -24,7 +24,7 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
     modelLabel.setJustificationType (juce::Justification::centredLeft);
     modelLabel.setText ("  Modelo: " + (processorRef.getLoadedModelName().isNotEmpty()
                                           ? processorRef.getLoadedModelName()
-                                          : juce::String ("(ninguno — passthrough)")),
+                                          : juce::String ("(ninguno - passthrough)")),
                         juce::dontSendNotification);
     addAndMakeVisible (modelLabel);
 
@@ -60,6 +60,23 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
     audioButton.onClick = [this] { openAudioSettings(); };
 
     setSize (520, 300);
+
+    ensureInputUnmuted();   // amp sim: la entrada es la guitarra, no hay feedback real
+    startTimer (1000);      // y la mantenemos desmuteada por si se re-silencia al reconfigurar
+}
+
+void MusicAppAudioProcessorEditor::ensureInputUnmuted()
+{
+   #if JucePlugin_Build_Standalone
+    if (auto* holder = juce::StandalonePluginHolder::getInstance())
+        if ((bool) holder->getMuteInputValue().getValue())
+            holder->getMuteInputValue().setValue (false);
+   #endif
+}
+
+void MusicAppAudioProcessorEditor::timerCallback()
+{
+    ensureInputUnmuted();
 }
 
 //==============================================================================

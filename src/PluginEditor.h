@@ -8,7 +8,8 @@
 // externa, sample rate, buffer). Estilo "dark pro" alineado con el mockup.
 // Nota: esta UI es provisional; la definitiva irá en WebView (ver CLAUDE.md).
 //==============================================================================
-class MusicAppAudioProcessorEditor : public juce::AudioProcessorEditor
+class MusicAppAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                     private juce::Timer
 {
 public:
     explicit MusicAppAudioProcessorEditor (MusicAppAudioProcessor&);
@@ -18,6 +19,8 @@ public:
     void resized() override;
 
 private:
+    void timerCallback() override;      // mantiene la entrada desmuteada (amp sim)
+    void ensureInputUnmuted();
     void chooseModel();
     void openAudioSettings();
     void styleKnob (juce::Slider&);
@@ -27,8 +30,8 @@ private:
     juce::Label   titleLabel, subtitleLabel, modelLabel;
     juce::Slider  inputGain, outputGain;
     juce::Label   inputLabel, outputLabel;
-    juce::TextButton loadButton  { "Cargar .nam…" };
-    juce::TextButton audioButton { "Preferencias de audio…" };
+    juce::TextButton loadButton  { "Cargar .nam..." };
+    juce::TextButton audioButton { "Preferencias de audio..." };
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     std::unique_ptr<SliderAttachment> inAtt, outAtt;

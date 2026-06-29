@@ -1,17 +1,19 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <cmath>
 #include <filesystem>
 
 //==============================================================================
 namespace
 {
-    // TEMPORAL (spike): modelo de ejemplo que viene con NeuralAmpModelerCore,
-    // para que la app suene desde el primer arranque sin tener que cargar nada.
+    // TEMPORAL (spike): modelo REAL del usuario (captura de tone3000) para que la
+    // app suene desde el arranque. OJO: los example_models de NAM Core son fixtures
+    // de prueba con salida no calibrada (wavenet_a2_max da ~10x) — no usarlos.
     // En Fase 2 esto lo reemplaza el buscador de tone3000.
     const juce::File kDefaultModel {
-        "/Users/automatizacionesbch/Desktop/AGENTES IA/Music App/libs/"
-        "NeuralAmpModelerCore/example_models/wavenet_a2_max.nam"
+        "/Users/automatizacionesbch/Desktop/AGENTES IA/Music App/"
+        "Dunlop Eric Johnson Fuzz Face/Dunlop Eric Johnson Fuzz 01.nam"
     };
 }
 
@@ -33,7 +35,10 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
         {
             mModel = nam::get_dsp (std::filesystem::path (kDefaultModel.getFullPathName().toStdString()));
             if (mModel != nullptr)
+            {
                 mLoadedModelName = kDefaultModel.getFileName();
+                mNormGain.store (computeNormGain (*mModel));
+            }
         }
         catch (const std::exception& e)
         {
@@ -62,6 +67,18 @@ void MusicAppAudioProcessor::prepareModel (nam::DSP& model) const
 {
     model.Reset (mSampleRate, mBlockSize);
     model.prewarm();
+}
+
+float MusicAppAudioProcessor::computeNormGain (const nam::DSP& model)
+{
+    // Normaliza la salida del modelo a un loudness objetivo (-18 dB), como hace el
+    // plugin oficial de NAM, para que todos los modelos queden a un nivel parejo.
+    if (model.HasLoudness())
+    {
+        const double targetDb = -18.0;
+        return (float) std::pow (10.0, (targetDb - model.GetLoudness()) / 20.0);
+    }
+    return 1.0f;
 }
 
 //==============================================================================
@@ -108,11 +125,17 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     const int n = juce::jmin (numSamples, (int) mInScratch.size());
 
-    // Guitarra = canal de entrada 0. Copiamos a scratch (con input gain) ANTES
-    // de escribir salidas para no corromper la lectura.
-    const float* in = buffer.getReadPointer (0);
+    // Guitarra: sumamos TODAS las entradas a mono, así funciona esté en input 1/L
+    // o input 2/R de la interfaz. Copiamos a scratch (con input gain) ANTES de
+    // escribir las salidas para no corromper la lectura.
+    const int numIn = juce::jmin (getTotalNumInputChannels(), numCh);
     for (int i = 0; i < n; ++i)
-        mInScratch[(size_t) i] = (double) (in[i] * inGain);
+    {
+        double s = 0.0;
+        for (int ch = 0; ch < numIn; ++ch)
+            s += (double) buffer.getReadPointer (ch)[i];
+        mInScratch[(size_t) i] = s * inGain;
+    }
 
     if (mModel != nullptr)
     {
@@ -127,12 +150,24 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             mOutScratch[(size_t) i] = mInScratch[(size_t) i];
     }
 
-    // Volcamos el resultado (mono) a todas las salidas, con output gain.
+    // SEGURIDAD: sanitizamos la salida una vez. NaN/Inf -> 0 y recorte a [-1,1]
+    // para que la app NUNCA pueda mandar una señal descontrolada a la interfaz
+    // (lo que pegaba los medidores y silenciaba todo). El recorte protege oídos
+    // y hardware ante un modelo/entrada que se dispare.
+    const float normGain = mNormGain.load();
+    for (int i = 0; i < n; ++i)
+    {
+        float v = (float) (mOutScratch[(size_t) i] * normGain * outGain);
+        if (! std::isfinite (v)) v = 0.0f;
+        mOutScratch[(size_t) i] = (double) juce::jlimit (-1.0f, 1.0f, v);
+    }
+
+    // Volcamos el resultado (mono, ya sanitizado) a todas las salidas.
     for (int ch = 0; ch < numCh; ++ch)
     {
         float* out = buffer.getWritePointer (ch);
         for (int i = 0; i < n; ++i)
-            out[i] = (float) (mOutScratch[(size_t) i] * outGain);
+            out[i] = (float) mOutScratch[(size_t) i];
         // Silencio si el buffer fuese mayor que el scratch (no debería pasar).
         for (int i = n; i < numSamples; ++i)
             out[i] = 0.0f;
@@ -152,10 +187,12 @@ bool MusicAppAudioProcessor::loadNamModel (const juce::File& file)
             return false;
 
         prepareModel (*dsp);                          // Reset + prewarm fuera del audio thread
+        const float ng = computeNormGain (*dsp);
 
         // Entregar al audio thread; si había uno en cola sin adoptar, liberarlo.
         nam::DSP* previouslyStaged = mStagedModel.exchange (dsp.release());
         delete previouslyStaged;
+        mNormGain.store (ng);
 
         mLoadedModelName = file.getFileName();
         return true;

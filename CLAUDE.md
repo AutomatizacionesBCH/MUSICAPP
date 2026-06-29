@@ -18,10 +18,11 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   (i5-7360U, 2 núcleos), buffer 64 @ 48 kHz, 2 s de audio:** A2-max 185 ms → **~10.8× tiempo real
   (~9% de un núcleo)**; A1-Standard 225 ms → **~8.9× (~11%)**. → 1 instancia en vivo es muy holgada,
   con margen para IR + efectos.
-- **Fase 1 — Milestone 1 ✅ (compila):** proyecto JUCE standalone montado (`CMakeLists.txt` + `src/`)
-  y **compila sin errores** → `build/app/MusicApp_artefacts/Release/Standalone/Music App.app`
-  (JUCE 8.0.14 vía FetchContent). **Pendiente:** ejecutarlo con la interfaz real para confirmar el
-  audio en vivo (aún NO se ha corrido — verificación pendiente para la próxima sesión).
+- **Fase 1 — Milestone 1 ✅ CONFIRMADO EN VIVO (2026-06-29):** la app JUCE standalone
+  (`build/app/MusicApp_artefacts/Release/Standalone/Music App.app`, JUCE 8.0.14) **procesa la
+  guitarra en tiempo real** a través de NAM, vía interfaz **Arturia MiniFuse 2** → suena. ✔️
+  Cadena actual: input (suma L+R a mono) → NAM (normalizado por loudness) → limitador → output.
+  **Siguiente:** cadena IR + efectos, o el buscador tone3000.
 - El catálogo de tonos se integrará vía la **API oficial de tone3000** (Fase 2); por ahora todo local.
 
 ### Receta de integración de NAM Core (verificada al compilar)
@@ -30,7 +31,28 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
 - C++20; en macOS `-stdlib=libc++`. Definir `NAM_ENABLE_A2_FAST` (fast-path A2, ON por defecto).
 - API en vivo: `auto m = nam::get_dsp(path)` (fuera del audio thread) → `m->Reset(sampleRate, maxBlock)`
   → en el callback `m->process(...)`. NAM trabaja en **double**; convertir float↔double fuera del hot path.
-- Toolchain: CMake oficial 3.30.5 instalado en `/usr/local/bin/cmake` (brew compilaba desde fuente, muy lento).
+- ⚠️ **Registro estático (bug ya resuelto):** las arquitecturas (WaveNet/LSTM/…) se auto-registran con
+  objetos estáticos a nivel de archivo (`wavenet/model.cpp`: `static ConfigParserHelper _register_WaveNet`).
+  Si NAM se enlaza como `.a` normal, el linker los descarta y `get_dsp` falla con *"No config parser
+  registered for architecture: WaveNet"*. **Fix:** compilar NAM como `add_library(nam_core STATIC …)` y
+  enlazarla con `$<LINK_LIBRARY:WHOLE_ARCHIVE,nam_core>` en el **ejecutable final** (`MusicApp_Standalone`),
+  NO en la lib intermedia de JUCE. (La tool `render` no tenía el bug porque compila NAM directo al exe.)
+- **Standalone como amp sim:** JUCE silencia la entrada por defecto ("muted to avoid feedback loop").
+  Desmutear en el editor: `juce::StandalonePluginHolder::getInstance()->getMuteInputValue().setValue(false)`.
+- **Encoding:** `juce::String(const char*)` mostró mojibake (`Â·`) con UTF-8; usar ASCII o `String::fromUTF8`.
+- ⚠️ **Niveles de salida (bug que saturaba la interfaz, ya resuelto):** los `example_models` de NAM
+  Core son **fixtures de prueba sin calibrar** — `wavenet_a2_max.nam` saca **~10× el máximo** con
+  entrada normal (su `GetLoudness()` reporta -20 dB pero el pico real es +20 dB → metadata inservible).
+  Eso mandaba ±10 a la interfaz → medidores congelados al máximo y sin sonido (NO daña el hardware,
+  es clipping). **Usar modelos REALES** (capturas de tone3000; las Dunlop del usuario dan pico ~0.49).
+  Fixes en el processor: (1) **normalizar la salida por loudness** — `if (HasLoudness()) gain =
+  10^((-18 - GetLoudness())/20)`; (2) **limitador de seguridad** en `processBlock`: NaN/Inf→0 y
+  `jlimit(-1,1)` para no mandar nunca una señal descontrolada; (3) **sumar todas las entradas a mono**
+  (la guitarra puede estar en input 1/L o 2/R). El modelo por defecto es ahora un `.nam` real (path
+  hardcodeado temporal; lo reemplaza el buscador tone3000 en Fase 2).
+- Toolchain: CMake 3.30.5 (binario oficial) en **`~/.local/cmake-3.30.5`** con symlink en `~/.local/bin/cmake`
+  (y `/usr/local/bin/cmake`). ⚠️ NO instalar en el scratchpad (se limpia entre sesiones y rompe el build).
+  `brew install cmake` compila desde fuente en este Mac (lentísimo) → usar el binario precompilado.
 
 ## Decisiones de arquitectura (fijadas 2026-06-28)
 
