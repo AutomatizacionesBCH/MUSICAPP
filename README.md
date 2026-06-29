@@ -5,14 +5,16 @@ señal de tu guitarra/bajo **en tiempo real** a través de modelos **NAM (Neural
 de cabinet y efectos — con un buscador de tonos conectado a [tone3000.com](https://www.tone3000.com).
 Una especie de AmpliTube, pero usando el ecosistema **abierto** de NAM.
 
-> **Estado:** en desarrollo temprano (spike). El motor de audio ya funciona y suena; la app
-> standalone JUCE ya compila. Ver [`CLAUDE.md`](CLAUDE.md) para el detalle completo del proyecto.
+> **Estado:** spike funcional. La app standalone **procesa la guitarra en vivo** a través de NAM
+> (probado con una interfaz Arturia MiniFuse 2). Ver [`CLAUDE.md`](CLAUDE.md) para el detalle completo.
 
 ## Qué hace (y qué hará)
 
-- ✅ Carga y reproduce modelos `.nam` (arquitecturas A1 y A2) con `NeuralAmpModelerCore`.
+- ✅ **Procesa la guitarra en tiempo real** a través de modelos `.nam` (A1/A2) con `NeuralAmpModelerCore`.
 - ✅ App standalone JUCE con **preferencias de audio** (interfaz externa, sample rate, buffer).
-- 🔜 Cadena de rig: pre-FX → amp (NAM) → cabinet (IR) → post-FX, reordenable.
+- ✅ **Medidores In/Out** + **reverb** post-FX + normalización de salida por loudness + limitador.
+- ✅ Carga de cualquier modelo `.nam` desde la UI.
+- 🔜 Cadena de rig completa: pre-FX → amp (NAM) → **cabinet (IR)** → post-FX, reordenable.
 - 🔜 Buscador de tonos vía la **API oficial de tone3000** (sin scraping, bajo tu cuenta).
 - 🔜 Presets/setlists e interfaz personalizada (UI en WebView).
 - 🔜 Versión móvil (iOS AUv3 / Android).
