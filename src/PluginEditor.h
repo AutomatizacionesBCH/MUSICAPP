@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "ModelLibrary.h"
 
 //==============================================================================
 // UI mínima del spike: gains + cargar .nam + preferencias de audio (interfaz
@@ -23,6 +24,8 @@ private:
     void ensureInputUnmuted();
     void chooseModel();
     void chooseIR();
+    void openModelBrowser();
+    void loadModelFile (const juce::File& file);   // carga + actualiza el label
     void openAudioSettings();
     void styleKnob (juce::Slider&);
     void drawMeter (juce::Graphics&, juce::Rectangle<int>, float level, const juce::String& label);
@@ -34,6 +37,7 @@ private:
     juce::Label   inputLabel, outputLabel, reverbLabel;
     juce::TextButton loadButton  { "Cargar .nam..." };
     juce::TextButton audioButton { "Preferencias de audio..." };
+    juce::TextButton modelsButton { "Modelos..." };   // abre el explorador de librería
 
     // Cabinet IR
     juce::Label      irLabel;
@@ -61,6 +65,12 @@ private:
     const juce::Colour cGreen   { 0xff2BD66A };
     const juce::Colour cAmber   { 0xffF4C430 };
     const juce::Colour cRed     { 0xffFF3B30 };
+
+    // Explorador de modelos: librería (datos), persistencia de la carpeta y la
+    // ventana popup. mBrowserWindow va al final para destruirse ANTES que mLibrary.
+    ModelLibrary mLibrary;
+    std::unique_ptr<juce::PropertiesFile> mSettings;
+    std::unique_ptr<juce::DocumentWindow> mBrowserWindow;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessorEditor)
 };

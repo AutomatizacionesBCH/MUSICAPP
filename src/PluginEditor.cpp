@@ -1,8 +1,36 @@
 #include "PluginEditor.h"
+#include "ModelBrowser.h"
 
 #if JucePlugin_Build_Standalone
  #include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
 #endif
+
+namespace
+{
+    // Ventana popup que hospeda el ModelBrowser; al cerrar avisa por callback para
+    // que el editor libere su unique_ptr (el browser se destruye con la ventana).
+    class BrowserWindow : public juce::DocumentWindow
+    {
+    public:
+        BrowserWindow (juce::Component* content, std::function<void()> onClose)
+            : juce::DocumentWindow ("Biblioteca de modelos",
+                                    juce::Colour (0xff0E0F11),
+                                    juce::DocumentWindow::closeButton),
+              mOnClose (std::move (onClose))
+        {
+            setUsingNativeTitleBar (true);
+            setContentOwned (content, true);
+            setResizable (true, false);
+            centreWithSize (560, 460);
+            setVisible (true);
+        }
+
+        void closeButtonPressed() override { if (mOnClose) mOnClose(); }
+
+    private:
+        std::function<void()> mOnClose;
+    };
+}
 
 //==============================================================================
 MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcessor& p)
@@ -84,6 +112,23 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
                      juce::dontSendNotification);
     addAndMakeVisible (irLabel);
 
+    // Explorador de modelos: botón + librería con carpeta persistida.
+    styleButton (modelsButton, false);
+    modelsButton.onClick = [this] { openModelBrowser(); };
+
+    juce::PropertiesFile::Options opts;
+    opts.applicationName     = "Music App";
+    opts.filenameSuffix      = "settings";
+    opts.folderName          = "Music App";
+    opts.osxLibrarySubFolder = "Application Support";
+    mSettings = std::make_unique<juce::PropertiesFile> (opts);
+
+    juce::File libFolder (mSettings->getValue ("modelLibraryFolder", {}));
+    if (! libFolder.isDirectory())
+        libFolder = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                      .getChildFile ("Music App").getChildFile ("models");
+    mLibrary.setFolder (libFolder);
+
     setSize (520, 352);
 
     ensureInputUnmuted();   // amp sim: la entrada es la guitarra, no hay feedback real
@@ -147,11 +192,7 @@ void MusicAppAudioProcessorEditor::chooseModel()
         if (file == juce::File())
             return;
 
-        if (processorRef.loadNamModel (file))
-            modelLabel.setText ("  Modelo: " + processorRef.getLoadedModelName(),
-                                juce::dontSendNotification);
-        else
-            modelLabel.setText ("  Error al cargar el modelo", juce::dontSendNotification);
+        loadModelFile (file);
     });
 }
 
@@ -179,6 +220,43 @@ void MusicAppAudioProcessorEditor::chooseIR()
         else
             irLabel.setText ("  Error al cargar el IR", juce::dontSendNotification);
     });
+}
+
+void MusicAppAudioProcessorEditor::loadModelFile (const juce::File& file)
+{
+    if (processorRef.loadNamModel (file))
+        modelLabel.setText ("  Modelo: " + processorRef.getLoadedModelName(),
+                            juce::dontSendNotification);
+    else
+        modelLabel.setText ("  Error al cargar el modelo", juce::dontSendNotification);
+}
+
+void MusicAppAudioProcessorEditor::openModelBrowser()
+{
+    if (mBrowserWindow != nullptr) { mBrowserWindow->toFront (true); return; }
+
+    auto* browser = new ModelBrowser (mLibrary);
+    browser->setSize (560, 460);
+    browser->onLoad = [this] (juce::File f) { loadModelFile (f); };
+    browser->onFolderChanged = [this] (juce::File dir)
+    {
+        if (mSettings != nullptr)
+        {
+            mSettings->setValue ("modelLibraryFolder", dir.getFullPathName());
+            mSettings->saveIfNeeded();
+        }
+    };
+    // Al cerrar: diferir la destrucción (no borrar la ventana dentro de su propio
+    // closeButtonPressed) y usar SafePointer por si el editor ya no existe.
+    juce::Component::SafePointer<MusicAppAudioProcessorEditor> safe (this);
+    mBrowserWindow.reset (new BrowserWindow (browser, [safe]
+    {
+        juce::MessageManager::callAsync ([safe]
+        {
+            if (auto* ed = safe.getComponent())
+                ed->mBrowserWindow.reset();
+        });
+    }));
 }
 
 void MusicAppAudioProcessorEditor::openAudioSettings()
@@ -244,7 +322,10 @@ void MusicAppAudioProcessorEditor::resized()
     subtitleLabel.setBounds (header);
 
     r.removeFromTop (8);
-    modelLabel.setBounds (r.removeFromTop (28));
+    auto modelRow = r.removeFromTop (28);
+    modelsButton.setBounds (modelRow.removeFromRight (96));
+    modelRow.removeFromRight (8);
+    modelLabel.setBounds (modelRow);
 
     // Fila Cabinet IR: [Cargar IR...] [toggle IR] [label del IR]
     r.removeFromTop (6);

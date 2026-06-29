@@ -40,7 +40,12 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   mono, normalizada, thread-safe) tras el NAM y antes del reverb. Cadena: `NAM → normGain → [IR si
   irOn] → reverb`. UI: botón **Cargar IR** + toggle **IR** (default OFF, para no doble-cab con
   capturas amp-cab) + label; `resolveDefaultIR()` (`~/Documents/Music App/irs/*.wav`). Verificado en
-  Windows (carga un IR de cabinet). **Siguiente (2b cont.):** drive pre-amp y selector de modelos en la UI.
+  Windows (carga un IR de cabinet).
+- **Milestone 2b — Selector de modelos ✅ (2026-06-29):** explorador in-app de la librería NAM.
+  `ModelLibrary` (datos: escaneo recursivo + filtro por substring) + `ModelBrowser` (UI: búsqueda +
+  `ListBox`) en una ventana popup (botón **Modelos...**). Carpeta de librería **configurable y
+  persistida** (`PropertiesFile`), default `~/Documents/Music App/models/`. Verificado en Windows con
+  2.000+ modelos y búsqueda en vivo ("fender" → filtra). **Siguiente (2b cont.):** drive pre-amp.
 
 ### Receta de integración de NAM Core (verificada al compilar)
 - Fuentes a compilar: `libs/NeuralAmpModelerCore/NAM/*.cpp` + `NAM/*/*.cpp` (incluye `wavenet/`).

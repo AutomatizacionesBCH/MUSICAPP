@@ -69,6 +69,8 @@ juce_generate_juce_header(MusicApp)
 target_sources(MusicApp PRIVATE
   src/PluginProcessor.cpp
   src/PluginEditor.cpp
+  src/ModelLibrary.cpp
+  src/ModelBrowser.cpp
 )
 
 target_compile_features(MusicApp PRIVATE cxx_std_20)
