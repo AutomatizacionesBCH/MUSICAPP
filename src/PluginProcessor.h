@@ -49,6 +49,9 @@ public:
     juce::String getLoadedModelName() const { return mLoadedModelName; }
     bool loadIR (const juce::File& file);                          // Cabinet IR (.wav)
     juce::String getLoadedIRName() const { return mIrLoadedName; }
+    // Rutas completas (para que la UI resuelva la foto vecina del tono: <dir>/images).
+    juce::File getLoadedModelFile() const { return mLoadedModelFile; }
+    juce::File getLoadedIRFile()    const { return mIrLoadedFile; }
 
     // Medidores (read-only para la UI): pico [0..1] del último bloque.
     float getInPeak()  const { return mInPeak.load(); }
@@ -65,6 +68,7 @@ private:
     std::atomic<nam::DSP*> mStagedModel { nullptr };
     std::atomic<float> mNormGain { 1.0f };   // ganancia de normalización por loudness del modelo
     juce::String mLoadedModelName;
+    juce::File   mLoadedModelFile;
 
     double mSampleRate { 48000.0 };
     int    mBlockSize  { 512 };
@@ -77,6 +81,7 @@ private:
     // thread-safe; la convolución no aloca en el callback (buffers de prepare()).
     juce::dsp::Convolution mConvolution;
     juce::String mIrLoadedName;
+    juce::File   mIrLoadedFile;
 
     juce::Reverb mReverb;                 // post-FX (mono)
 

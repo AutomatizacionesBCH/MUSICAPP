@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "WebUIEditor.h"
 
 #include <cmath>
 #include <filesystem>
@@ -100,6 +101,7 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
             if (mModel != nullptr)
             {
                 mLoadedModelName = defaultModel.getFileName();
+                mLoadedModelFile = defaultModel;
                 mNormGain.store (computeNormGain (*mModel));
             }
         }
@@ -308,6 +310,7 @@ bool MusicAppAudioProcessor::loadNamModel (const juce::File& file)
         mNormGain.store (ng);
 
         mLoadedModelName = file.getFileName();
+        mLoadedModelFile = file;
         return true;
     }
     catch (const std::exception& e)
@@ -331,6 +334,7 @@ bool MusicAppAudioProcessor::loadIR (const juce::File& file)
                                       (size_t) 0,
                                       juce::dsp::Convolution::Normalise::yes);
     mIrLoadedName = file.getFileName();
+    mIrLoadedFile = file;
     return true;
 }
 
@@ -349,7 +353,7 @@ void MusicAppAudioProcessor::setStateInformation (const void* data, int sizeInBy
 
 juce::AudioProcessorEditor* MusicAppAudioProcessor::createEditor()
 {
-    return new MusicAppAudioProcessorEditor (*this);
+    return new WebUIEditor (*this);   // UI definitiva en WebView (Ciclo 1)
 }
 
 //==============================================================================

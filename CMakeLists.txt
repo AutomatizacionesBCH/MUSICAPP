@@ -6,6 +6,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "macOS deployment target")
 
 # --------------------------------------------------------------------------
+# WebView2 SDK (Windows): JUCE no lo incluye. Se descarga el NuGet a .webview2/
+# (ver platform/windows/build.ps1). El include va ANTES de crear los targets de
+# JUCE para que juce_gui_extra (que incluye <WebView2.h>) lo herede.
+# --------------------------------------------------------------------------
+set(WEBVIEW2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.webview2/build/native")
+if (WIN32 AND EXISTS "${WEBVIEW2_DIR}/include/WebView2.h")
+  include_directories("${WEBVIEW2_DIR}/include")
+endif()
+
+# --------------------------------------------------------------------------
 # JUCE (descargado automáticamente; primera vez tarda)
 # --------------------------------------------------------------------------
 include(FetchContent)
@@ -71,6 +81,7 @@ target_sources(MusicApp PRIVATE
   src/PluginEditor.cpp
   src/ModelLibrary.cpp
   src/ModelBrowser.cpp
+  src/WebUIEditor.cpp
 )
 
 target_compile_features(MusicApp PRIVATE cxx_std_20)
@@ -90,7 +101,8 @@ target_include_directories(MusicApp PRIVATE
 target_compile_definitions(MusicApp PRIVATE
   NAM_ENABLE_A2_FAST
   EIGEN_MPL2_ONLY
-  JUCE_WEB_BROWSER=0
+  JUCE_WEB_BROWSER=1            # UI definitiva en WebView (Helix/AmpliTube style)
+  JUCE_USE_WIN_WEBVIEW2=1       # backend Edge/Chromium en Windows
   JUCE_USE_CURL=0
   DONT_SET_USING_JUCE_NAMESPACE=1
 )
@@ -99,6 +111,7 @@ target_link_libraries(MusicApp
   PRIVATE
     juce::juce_audio_utils
     juce::juce_dsp          # juce::dsp::Convolution para el Cabinet IR
+    juce::juce_gui_extra    # juce::WebBrowserComponent (UI WebView)
   PUBLIC
     juce::juce_recommended_config_flags
 )
@@ -107,4 +120,12 @@ target_link_libraries(MusicApp
 # (incluidos los registradores estáticos de WaveNet/LSTM/ConvNet/Linear).
 if (TARGET MusicApp_Standalone)
   target_link_libraries(MusicApp_Standalone PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,nam_core>")
+  # JUCE carga WebView2Loader.dll en runtime (LoadLibrary). Hay que copiarla junto
+  # al ejecutable; si falta, JUCE cae al backend IE (resource provider no funciona).
+  if (WIN32 AND EXISTS "${WEBVIEW2_DIR}/x64/WebView2Loader.dll")
+    add_custom_command(TARGET MusicApp_Standalone POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${WEBVIEW2_DIR}/x64/WebView2Loader.dll"
+        "$<TARGET_FILE_DIR:MusicApp_Standalone>")
+  endif()
 endif()

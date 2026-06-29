@@ -46,6 +46,14 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   `ListBox`) en una ventana popup (botón **Modelos...**). Carpeta de librería **configurable y
   persistida** (`PropertiesFile`), default `~/Documents/Music App/models/`. Verificado en Windows con
   2.000+ modelos y búsqueda en vivo ("fender" → filtra). **Siguiente (2b cont.):** drive pre-amp.
+- **UI WebView — Ciclo 1, Etapa 1 ✅ (2026-06-29):** la UI definitiva pasa a **JUCE WebView**
+  (`WebUIEditor` + `juce::WebBrowserComponent`, backend WebView2). Render de la **cadena de señal**
+  `IN → AMP·NAM → CAB·IR → REVERB → OUT` estilo Helix/AmpliTube (HTML/CSS embebidos, resource provider)
+  con **fotos** del amp/cab (resueltas de `<modelo>/images/image_*`). **Windows:** necesita el SDK
+  WebView2 (NuGet, lo baja `build.ps1` a `.webview2/`) y `WebView2Loader.dll` junto al exe (lo copia
+  CMake post-build; sin ella JUCE cae al backend IE). **Etapa 2 (pendiente):** cablear los controles
+  (relays `WebSliderRelay`/`WebToggleButtonRelay` ↔ APVTS) y la carga vía función nativa. Mientras,
+  la UI nativa (`PluginEditor`) sigue en el repo como referencia.
 
 ### Receta de integración de NAM Core (verificada al compilar)
 - Fuentes a compilar: `libs/NeuralAmpModelerCore/NAM/*.cpp` + `NAM/*/*.cpp` (incluye `wavenet/`).
