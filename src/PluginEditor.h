@@ -22,6 +22,7 @@ private:
     void timerCallback() override;      // desmuteo + refresco de medidores
     void ensureInputUnmuted();
     void chooseModel();
+    void chooseIR();
     void openAudioSettings();
     void styleKnob (juce::Slider&);
     void drawMeter (juce::Graphics&, juce::Rectangle<int>, float level, const juce::String& label);
@@ -34,8 +35,15 @@ private:
     juce::TextButton loadButton  { "Cargar .nam..." };
     juce::TextButton audioButton { "Preferencias de audio..." };
 
+    // Cabinet IR
+    juce::Label      irLabel;
+    juce::TextButton loadIrButton { "Cargar IR..." };
+    juce::ToggleButton irToggle   { "IR" };
+
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     std::unique_ptr<SliderAttachment> inAtt, outAtt, revAtt;
+    std::unique_ptr<ButtonAttachment> irAtt;
     std::unique_ptr<juce::FileChooser> chooser;
 
     // Niveles suavizados de los medidores (con caída).

@@ -64,7 +64,27 @@ MusicAppAudioProcessorEditor::MusicAppAudioProcessorEditor (MusicAppAudioProcess
     loadButton.onClick  = [this] { chooseModel(); };
     audioButton.onClick = [this] { openAudioSettings(); };
 
-    setSize (520, 300);
+    // Cabinet IR: botón de carga + toggle ON/OFF + label del IR cargado.
+    styleButton (loadIrButton, false);
+    loadIrButton.onClick = [this] { chooseIR(); };
+
+    irToggle.setColour (juce::ToggleButton::textColourId,         cText2);
+    irToggle.setColour (juce::ToggleButton::tickColourId,         cAccent);
+    irToggle.setColour (juce::ToggleButton::tickDisabledColourId, cTrack);
+    addAndMakeVisible (irToggle);
+    irAtt = std::make_unique<ButtonAttachment> (processorRef.apvts, "irOn", irToggle);
+
+    irLabel.setFont (juce::Font (juce::FontOptions (12.0f)));
+    irLabel.setColour (juce::Label::textColourId,       cText2);
+    irLabel.setColour (juce::Label::backgroundColourId, cModule);
+    irLabel.setJustificationType (juce::Justification::centredLeft);
+    irLabel.setText ("  IR: " + (processorRef.getLoadedIRName().isNotEmpty()
+                                   ? processorRef.getLoadedIRName()
+                                   : juce::String ("(ninguno)")),
+                     juce::dontSendNotification);
+    addAndMakeVisible (irLabel);
+
+    setSize (520, 352);
 
     ensureInputUnmuted();   // amp sim: la entrada es la guitarra, no hay feedback real
     startTimerHz (30);      // desmuteo + refresco de medidores
@@ -135,6 +155,32 @@ void MusicAppAudioProcessorEditor::chooseModel()
     });
 }
 
+void MusicAppAudioProcessorEditor::chooseIR()
+{
+    // Directorio inicial multiplataforma: ~/Documents/Music App/irs si existe.
+    auto startDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                      .getChildFile ("Music App").getChildFile ("irs");
+    if (! startDir.isDirectory())
+        startDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
+
+    chooser = std::make_unique<juce::FileChooser> ("Elige un Cabinet IR (.wav)", startDir, "*.wav");
+
+    const auto flags = juce::FileBrowserComponent::openMode
+                     | juce::FileBrowserComponent::canSelectFiles;
+
+    chooser->launchAsync (flags, [this] (const juce::FileChooser& fc)
+    {
+        const auto file = fc.getResult();
+        if (file == juce::File())
+            return;
+
+        if (processorRef.loadIR (file))
+            irLabel.setText ("  IR: " + processorRef.getLoadedIRName(), juce::dontSendNotification);
+        else
+            irLabel.setText ("  Error al cargar el IR", juce::dontSendNotification);
+    });
+}
+
 void MusicAppAudioProcessorEditor::openAudioSettings()
 {
    #if JucePlugin_Build_Standalone
@@ -199,6 +245,15 @@ void MusicAppAudioProcessorEditor::resized()
 
     r.removeFromTop (8);
     modelLabel.setBounds (r.removeFromTop (28));
+
+    // Fila Cabinet IR: [Cargar IR...] [toggle IR] [label del IR]
+    r.removeFromTop (6);
+    auto irRow = r.removeFromTop (28);
+    loadIrButton.setBounds (irRow.removeFromLeft (130));
+    irRow.removeFromLeft (10);
+    irToggle.setBounds (irRow.removeFromLeft (60));
+    irRow.removeFromLeft (10);
+    irLabel.setBounds (irRow);
 
     r.removeFromBottom (56);          // espacio de la barra inferior
     r.removeFromBottom (8);

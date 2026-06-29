@@ -42,6 +42,39 @@ namespace
         }
         return {};
     }
+
+    // Carpeta de IRs por defecto, multiplataforma: ~/Documents/Music App/irs
+    juce::File defaultIRsDir()
+    {
+        return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                 .getChildFile ("Music App")
+                 .getChildFile ("irs");
+    }
+
+    // Resuelve un IR por defecto sin rutas de usuario/SO:
+    //   1) env var MUSICAPP_DEFAULT_IR (ruta a un .wav), o
+    //   2) el primer .wav en defaultIRsDir(), o
+    //   3) ninguno. (Se carga pero arranca BYPASSEADO: el modelo por defecto es
+    //      amp-cab y un IR encima sería doble-cab.)
+    juce::File resolveDefaultIR()
+    {
+        const auto env = juce::SystemStats::getEnvironmentVariable ("MUSICAPP_DEFAULT_IR", {});
+        if (env.isNotEmpty())
+        {
+            const juce::File f (env);
+            if (f.existsAsFile())
+                return f;
+        }
+
+        const auto dir = defaultIRsDir();
+        if (dir.isDirectory())
+        {
+            const auto irs = dir.findChildFiles (juce::File::findFiles, false, "*.wav");
+            if (! irs.isEmpty())
+                return irs.getReference (0);
+        }
+        return {};
+    }
 }
 
 //==============================================================================
@@ -54,6 +87,7 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
     mInputGainDb  = apvts.getRawParameterValue ("inputGain");
     mOutputGainDb = apvts.getRawParameterValue ("outputGain");
     mReverbMix    = apvts.getRawParameterValue ("reverbMix");
+    mIrOn         = apvts.getRawParameterValue ("irOn");
 
     // Carga inicial del modelo por defecto (el audio aún no corre, así que es
     // seguro asignar mModel directamente; el Reset se hará en prepareToPlay).
@@ -74,6 +108,12 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
             juce::Logger::writeToLog (juce::String ("NAM load (default) falló: ") + e.what());
         }
     }
+
+    // IR por defecto (si hay uno en ~/Documents/Music App/irs). Arranca BYPASSEADO
+    // (irOn = false) para no doble-cab con el modelo amp-cab por defecto.
+    const juce::File defaultIR = resolveDefaultIR();
+    if (defaultIR.existsAsFile())
+        loadIR (defaultIR);
 }
 
 //==============================================================================
@@ -92,6 +132,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout MusicAppAudioProcessor::crea
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "reverbMix", 1 }, "Reverb",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "irOn", 1 }, "Cabinet IR", false));
 
     return layout;
 }
@@ -128,6 +171,11 @@ void MusicAppAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 
     mReverb.setSampleRate (sampleRate);
     mReverb.reset();
+
+    // Cabinet IR: mono (1 canal). loadImpulseResponse resamplea al sampleRate aquí.
+    const juce::dsp::ProcessSpec spec { sampleRate, (juce::uint32) samplesPerBlock, 1 };
+    mConvolution.prepare (spec);
+    mConvolution.reset();
 
     if (mModel != nullptr)
         prepareModel (*mModel);
@@ -194,6 +242,15 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     for (int i = 0; i < n; ++i)
         mWork[(size_t) i] = (float) (mOutScratch[(size_t) i] * normGain);
 
+    // 3.5) Cabinet IR (convolución, post-NAM). Bypass real: si está OFF no se procesa.
+    if (mIrOn != nullptr && mIrOn->load() > 0.5f)
+    {
+        float* irChans[1] = { mWork.data() };
+        juce::dsp::AudioBlock<float> irBlock (irChans, 1, (size_t) n);
+        juce::dsp::ProcessContextReplacing<float> irCtx (irBlock);
+        mConvolution.process (irCtx);
+    }
+
     // 4) Reverb (post-FX, mono).
     const float mix = mReverbMix != nullptr ? mReverbMix->load() : 0.0f;
     juce::Reverb::Parameters rp;
@@ -258,6 +315,23 @@ bool MusicAppAudioProcessor::loadNamModel (const juce::File& file)
         juce::Logger::writeToLog (juce::String ("NAM load falló: ") + e.what());
         return false;
     }
+}
+
+//==============================================================================
+bool MusicAppAudioProcessor::loadIR (const juce::File& file)
+{
+    if (! file.existsAsFile())
+        return false;
+
+    // loadImpulseResponse carga en un hilo de fondo y hace el swap del IR de forma
+    // thread-safe (mono, normalizado, resampleado al sampleRate preparado).
+    mConvolution.loadImpulseResponse (file,
+                                      juce::dsp::Convolution::Stereo::no,
+                                      juce::dsp::Convolution::Trim::no,
+                                      (size_t) 0,
+                                      juce::dsp::Convolution::Normalise::yes);
+    mIrLoadedName = file.getFileName();
+    return true;
 }
 
 //==============================================================================

@@ -96,6 +96,7 @@ target_compile_definitions(MusicApp PRIVATE
 target_link_libraries(MusicApp
   PRIVATE
     juce::juce_audio_utils
+    juce::juce_dsp          # juce::dsp::Convolution para el Cabinet IR
   PUBLIC
     juce::juce_recommended_config_flags
 )

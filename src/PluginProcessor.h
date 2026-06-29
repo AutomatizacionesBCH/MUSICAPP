@@ -47,6 +47,8 @@ public:
     juce::AudioProcessorValueTreeState apvts;
     bool loadNamModel (const juce::File& file);
     juce::String getLoadedModelName() const { return mLoadedModelName; }
+    bool loadIR (const juce::File& file);                          // Cabinet IR (.wav)
+    juce::String getLoadedIRName() const { return mIrLoadedName; }
 
     // Medidores (read-only para la UI): pico [0..1] del último bloque.
     float getInPeak()  const { return mInPeak.load(); }
@@ -71,6 +73,11 @@ private:
     std::vector<double> mInScratch, mOutScratch;
     std::vector<float>  mWork;            // buffer float de trabajo (post-NAM: reverb/output)
 
+    // Cabinet IR (post-NAM, pre-reverb). loadImpulseResponse hace el swap
+    // thread-safe; la convolución no aloca en el callback (buffers de prepare()).
+    juce::dsp::Convolution mConvolution;
+    juce::String mIrLoadedName;
+
     juce::Reverb mReverb;                 // post-FX (mono)
 
     std::atomic<float> mInPeak  { 0.0f };
@@ -79,6 +86,7 @@ private:
     std::atomic<float>* mInputGainDb  = nullptr;
     std::atomic<float>* mOutputGainDb = nullptr;
     std::atomic<float>* mReverbMix    = nullptr;
+    std::atomic<float>* mIrOn          = nullptr;   // bypass del Cabinet IR
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessor)
 };

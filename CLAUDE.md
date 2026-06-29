@@ -34,6 +34,13 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   env var `MUSICAPP_DEFAULT_MODEL` → `~/Documents/Music App/models/*.nam` → passthrough). Nueva
   estructura `platform/{windows,macos}/` con scripts de build. **Pendiente:** compilar/ejecutar en
   Windows (instalando VS2022 + CMake) y validar Eigen/NAM bajo MSVC.
+- **Windows — build verificado (2026-06-29):** la app **compila y corre nativa en Windows** (VS2022
+  + CMake 4.3.3, flags MSVC), carga el modelo por defecto y renderiza la UI. `main` ya integrado.
+- **Milestone 2b — Cabinet IR ✅ (2026-06-29):** etapa de convolución (`juce::dsp::Convolution`,
+  mono, normalizada, thread-safe) tras el NAM y antes del reverb. Cadena: `NAM → normGain → [IR si
+  irOn] → reverb`. UI: botón **Cargar IR** + toggle **IR** (default OFF, para no doble-cab con
+  capturas amp-cab) + label; `resolveDefaultIR()` (`~/Documents/Music App/irs/*.wav`). Verificado en
+  Windows (carga un IR de cabinet). **Siguiente (2b cont.):** drive pre-amp y selector de modelos en la UI.
 
 ### Receta de integración de NAM Core (verificada al compilar)
 - Fuentes a compilar: `libs/NeuralAmpModelerCore/NAM/*.cpp` + `NAM/*/*.cpp` (incluye `wavenet/`).
