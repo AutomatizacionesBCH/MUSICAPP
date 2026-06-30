@@ -111,10 +111,25 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   (hijo `fxchain` del estado). **6 bloques:** chorus, flanger, phaser, tremolo, delay, reverb. Añadir un
   efecto = 1 header en `src/fx/blocks/` + 1 línea en `FxFactory.cpp`. Ventana 1480×800 (la cadena crece).
   **Catálogo-roadmap completo** (76 efectos, estado) en `docs/effects-catalog.md`.
+- **Cadena UNIFICADA + drag-and-drop ✅ (2026-06-30):** TODA la cadena es una sola lista reordenable.
+  **Drive/Amp/Cab ahora son bloques** (`FxDrive`, `FxAmpRef`, `FxCabRef`) — los "ancla" (`removable()=false`,
+  Amp sin bypass). El NAM/IR siguen en el processor; los bloques ancla los invocan vía interfaz **`FxHost`**
+  (`hostProcessAmp/Cab`). Motor: `IN(gain) → [cadena: Drive,Amp,Cab,FX… reordenable] → OUT(gain)`. Sólo
+  quedan 2 params APVTS (in/out); el resto vive en los bloques. **Drag-and-drop** (HTML5, se arrastra por
+  el header/grip ☰; los knobs quedan libres) → puedes mover efectos **a cualquier posición, incluso antes
+  del Drive**. Menú **"+ Efecto" por categorías** (`category` en `FxFactory`). `describe()` lleva
+  `kind`/`removable`/`extra`; la UI renderiza amp/cab con foto+cargar, drive/fx con perillas.
+- **Modelos descargados EN la app (2026-06-30):** la descarga de tone3000 se cortó (~7.000 `.nam`, 2.2 GB;
+  el catálogo completo serían ~45 GB y días — no vale la pena). El buscador apunta a la carpeta `downloads`
+  vía `modelLibraryFolder` en `%APPDATA%\Music App\Music App.settings`. (Pendiente: ordenar el buscador por
+  `downloads_count`/`favorites_count` de `metadata.jsonl` para ver lo más probado primero.)
   **Siguiente:** poblar el rack (Pack 1: vibrato, uni-vibe, tape/BBD/ducking/reverse delay, hall/plate/
   spring reverb, octaver, whammy) — paralelizable con workflow; luego slot PEDAL NAM, grabador, metrónomo.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
+- **Strings C++ → JS por funciones nativas (JSON) deben ser ASCII.** Un `·`/`ó` en un `displayName` o
+  categoría sale mojibake (`Â·`, `Ã³`) en el WebView. El texto en HTML/CSS/JS (servido como recurso UTF-8)
+  sí soporta acentos/entidades. → nombres de bloque y categorías en ASCII.
 - **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar
   `ui/*.html|css|js` hay que **reconfigurar** (`cmake -S . -B build/app …`) o el HTML/CSS/JS embebido
   queda viejo. `build.ps1` siempre reconfigura, así que por ahí no falla. Para iterar rápido: borrar

@@ -6,7 +6,7 @@
 // (para el menú "+ Añadir" de la UI). Añadir un efecto nuevo = una línea aquí.
 namespace FxFactory
 {
-    struct TypeInfo { juce::String typeId, name; };
+    struct TypeInfo { juce::String typeId, name, category; };
 
     std::unique_ptr<FxBlock> create (const juce::String& typeId);
     juce::Array<TypeInfo>    available();

@@ -1,6 +1,12 @@
 #include "FxChain.h"
 #include "FxFactory.h"
 
+std::unique_ptr<FxBlock> FxChain::make (const juce::String& typeId) const
+{
+    if (factory) return factory (typeId);     // el processor crea amp/cab/drive + delega fx
+    return FxFactory::create (typeId);
+}
+
 void FxChain::prepare (double sr, int bs)
 {
     sampleRate = sr; blockSize = bs;
@@ -21,7 +27,7 @@ void FxChain::processMono (float* data, int n)
 //==============================================================================
 int FxChain::add (const juce::String& typeId, int pos)
 {
-    auto block = FxFactory::create (typeId);
+    auto block = make (typeId);
     if (block == nullptr)
         return 0;
 
@@ -44,6 +50,8 @@ void FxChain::remove (int uid)
     for (size_t i = 0; i < blocks.size(); ++i)
         if (blocks[i]->uid == uid)
         {
+            if (! blocks[i]->removable())   // anclas (amp/cab/drive) no se quitan
+                return;
             dead = std::move (blocks[i]);
             blocks.erase (blocks.begin() + (long) i);
             break;
@@ -103,10 +111,13 @@ juce::var FxChain::describe() const
     for (auto& b : blocks)
     {
         juce::DynamicObject::Ptr o = new juce::DynamicObject();
-        o->setProperty ("uid",    b->uid);
-        o->setProperty ("type",   b->typeId());
-        o->setProperty ("name",   b->displayName());
-        o->setProperty ("bypass", b->bypassed.load());
+        o->setProperty ("uid",       b->uid);
+        o->setProperty ("type",      b->typeId());
+        o->setProperty ("name",      b->displayName());
+        o->setProperty ("kind",      b->kind());
+        o->setProperty ("removable", b->removable());
+        o->setProperty ("bypass",    b->bypassed.load());
+        o->setProperty ("extra",     b->extra());
 
         juce::Array<juce::var> ps;
         for (auto& p : b->params)
@@ -149,7 +160,7 @@ void FxChain::fromValueTree (const juce::ValueTree& root)
     for (int i = 0; i < root.getNumChildren(); ++i)
     {
         const auto bt = root.getChild (i);
-        auto block = FxFactory::create (bt.getProperty ("type").toString());
+        auto block = make (bt.getProperty ("type").toString());
         if (block == nullptr)
             continue;
         block->prepare (sampleRate, blockSize);

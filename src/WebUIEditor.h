@@ -42,15 +42,10 @@ private:
     // Relays (declarados ANTES que webView: las Options los referencian).
     juce::WebSliderRelay       inputRelay  { "inputGain" };
     juce::WebSliderRelay       outputRelay { "outputGain" };
-    juce::WebToggleButtonRelay irRelay     { "irOn" };
-    juce::WebSliderRelay       driveAmtRelay { "driveAmount" };
-    juce::WebSliderRelay       driveLvlRelay { "driveLevel" };
-    juce::WebToggleButtonRelay driveOnRelay  { "driveOn" };
 
     juce::WebBrowserComponent  webView;
 
-    std::unique_ptr<juce::WebSliderParameterAttachment>       inAtt, outAtt, drvAmtAtt, drvLvlAtt;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> irAtt, drvOnAtt;
+    std::unique_ptr<juce::WebSliderParameterAttachment> inAtt, outAtt;
 
     // Buscador de modelos (popup nativo reusado) + persistencia de la carpeta.
     ModelLibrary mLibrary;

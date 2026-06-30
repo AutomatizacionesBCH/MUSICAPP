@@ -3,16 +3,8 @@ import * as Juce from "./juce/index.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// ===== estado (nombres + fotos) =====
-async function refreshState() {
-  try {
-    const s = await (await fetch("state.json?_=" + Date.now())).json();
-    $("amp-name").textContent = s.model || "(ninguno)";
-    $("cab-name").textContent = s.ir || "(ninguno)";
-    $("amp-photo").src = "amp-photo?_=" + Date.now();
-    $("cab-photo").src = "cab-photo?_=" + Date.now();
-  } catch (e) {}
-}
+// ===== estado: re-renderiza la cadena (amp/cab muestran su nombre+foto) =====
+function refreshState() { refreshChain(); }
 
 // ===== buscador de tonos (panel izquierdo) =====
 const listModels = Juce.getNativeFunction("listModels");
@@ -53,8 +45,6 @@ $("search").addEventListener("input", (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => search(e.target.value), 150);
 });
-$("cab-change").addEventListener("click", () => loadIR());
-
 // ===== presets =====
 const savePreset = Juce.getNativeFunction("savePreset");
 const listPresets = Juce.getNativeFunction("listPresets");
@@ -115,8 +105,6 @@ const fmtDb = (v) => (v > 0 ? "+" : "") + v.toFixed(1) + " dB";
 const fmtPct = (v) => Math.round(v * 100) + "%";
 bindKnob("k-in", "v-in", "inputGain", fmtDb);
 bindKnob("k-out", "v-out", "outputGain", fmtDb);
-bindKnob("k-drv", "v-drv", "driveAmount", fmtPct);
-bindKnob("k-lvl", "v-lvl", "driveLevel", fmtPct);
 
 // ===== toggles (WebToggleButtonRelay) =====
 function bindToggle(id, paramName) {
@@ -126,10 +114,9 @@ function bindToggle(id, paramName) {
   render();
   t.addEventListener("click", () => st.setValue(!st.getValue()));
 }
-bindToggle("ir-toggle", "irOn");
-bindToggle("drive-toggle", "driveOn");
 
-// ===== rack flexible de efectos =====
+// ===== rack flexible: TODA la cadena (Drive/Amp/Cab + efectos), arrastrable =====
+const loadModel = Juce.getNativeFunction("loadModel");
 const fxTypes = Juce.getNativeFunction("fxTypes");
 const fxGetChain = Juce.getNativeFunction("fxGetChain");
 const fxAdd = Juce.getNativeFunction("fxAdd");
@@ -147,90 +134,129 @@ function fxFmt(p, v) {
   return v.toFixed(2);
 }
 
-// arrastre global (un solo set de listeners para todas las perillas del rack)
-let fxDrag = null;
+// arrastre de perillas (un solo set de listeners global)
+let knobDrag = null;
 window.addEventListener("mousemove", (e) => {
-  if (!fxDrag) return;
-  let n = fxDrag.norm(fxDrag.startV) + (fxDrag.startY - e.clientY) / 180;
-  n = Math.max(0, Math.min(1, n));
-  const v = fxDrag.p.min + n * (fxDrag.p.max - fxDrag.p.min);
-  fxDrag.p.value = v;
-  fxDrag.render(v);
-  fxSetParam(fxDrag.uid, fxDrag.p.id, v);
+  if (!knobDrag) return;
+  let nrm = knobDrag.norm(knobDrag.startV) + (knobDrag.startY - e.clientY) / 180;
+  nrm = Math.max(0, Math.min(1, nrm));
+  const v = knobDrag.p.min + nrm * (knobDrag.p.max - knobDrag.p.min);
+  knobDrag.p.value = v;
+  knobDrag.render(v);
+  fxSetParam(knobDrag.uid, knobDrag.p.id, v);
 });
-window.addEventListener("mouseup", () => { fxDrag = null; });
+window.addEventListener("mouseup", () => { knobDrag = null; });
 
-function makeFxKnob(uid, p) {
-  const wrap = document.createElement("div");
-  wrap.className = "kwrap";
-  const knob = document.createElement("div");
-  knob.className = "knob";
-  const label = document.createElement("div");
-  label.className = "klabel";
-  label.textContent = p.label.toUpperCase();
-  const val = document.createElement("div");
-  val.className = "kval";
+function makeKnob(uid, p) {
+  const wrap = document.createElement("div"); wrap.className = "kwrap";
+  const knob = document.createElement("div"); knob.className = "knob";
+  const label = document.createElement("div"); label.className = "klabel"; label.textContent = p.label.toUpperCase();
+  const val = document.createElement("div"); val.className = "kval";
   const norm = (v) => (v - p.min) / (p.max - p.min);
   const render = (v) => { knob.style.setProperty("--pct", norm(v)); val.textContent = fxFmt(p, v); };
   render(p.value);
-  knob.addEventListener("mousedown", (e) => {
-    fxDrag = { uid, p, startY: e.clientY, startV: p.value, norm, render };
-    e.preventDefault();
-  });
-  wrap.appendChild(knob); wrap.appendChild(label); wrap.appendChild(val);
+  knob.addEventListener("mousedown", (e) => { knobDrag = { uid, p, startY: e.clientY, startV: p.value, norm, render }; e.preventDefault(); });
+  wrap.append(knob, label, val);
   return wrap;
 }
 
+function blockHeader(blk) {
+  const head = document.createElement("div"); head.className = "fxhead";
+  const grip = document.createElement("span"); grip.className = "fxgrip"; grip.innerHTML = "&#9776;"; grip.title = "Arrastra para mover";
+  const nm = document.createElement("span"); nm.className = "fxnm"; nm.textContent = blk.name;
+  head.append(grip, nm);
+  if (blk.kind !== "amp") {
+    const byp = document.createElement("button");
+    byp.className = "fxbtn" + (blk.bypass ? "" : " on"); byp.innerHTML = "&#9211;"; byp.title = blk.bypass ? "Activar" : "Bypass";
+    byp.addEventListener("click", async (e) => { e.stopPropagation(); renderChain(await fxBypass(blk.uid, !blk.bypass)); });
+    head.append(byp);
+  }
+  if (blk.removable) {
+    const rm = document.createElement("button");
+    rm.className = "fxbtn"; rm.innerHTML = "&#10005;"; rm.title = "Quitar";
+    rm.addEventListener("click", async (e) => { e.stopPropagation(); renderChain(await fxRemove(blk.uid)); });
+    head.append(rm);
+  }
+  return head;
+}
+
+function blockBody(sec, blk) {
+  if (blk.kind === "amp") {
+    const loaded = document.createElement("div"); loaded.className = "loaded";
+    loaded.innerHTML = '<div class="lcap">MODELO CARGADO</div><div class="lname"></div>';
+    loaded.querySelector(".lname").textContent = (blk.extra && blk.extra.loaded) || "(ninguno)";
+    const photo = document.createElement("div"); photo.className = "photo";
+    photo.innerHTML = '<img src="amp-photo?_=' + Date.now() + '" alt="">';
+    const btn = document.createElement("button"); btn.className = "change"; btn.textContent = "Cargar modelo";
+    btn.addEventListener("click", (e) => { e.stopPropagation(); loadModel(); });
+    sec.append(loaded, photo, btn);
+  } else if (blk.kind === "cab") {
+    const photo = document.createElement("div"); photo.className = "photo";
+    photo.innerHTML = '<img src="cab-photo?_=' + Date.now() + '" alt="">';
+    const nm = document.createElement("div"); nm.className = "lname small";
+    nm.textContent = (blk.extra && blk.extra.loaded) || "(ninguno)";
+    const btn = document.createElement("button"); btn.className = "change"; btn.textContent = "Cargar IR";
+    btn.addEventListener("click", async (e) => { e.stopPropagation(); await loadIR(); refreshChain(); });
+    sec.append(photo, nm, btn);
+  } else {
+    (blk.params || []).forEach((p) => sec.appendChild(makeKnob(blk.uid, p)));
+  }
+}
+
+// drag-and-drop de bloques (se arrastra por el header; los knobs quedan libres)
+let dragUid = null;
 function renderChain(chain) {
   if (!Array.isArray(chain)) return;
   fxRack.innerHTML = "";
   chain.forEach((blk, idx) => {
     const sec = document.createElement("section");
-    sec.className = "block fxblock" + (blk.bypass ? " byp" : "");
-    const head = document.createElement("div");
-    head.className = "fxhead";
-    head.innerHTML =
-      '<button class="fxbtn" title="Mover izquierda">&#9664;</button>' +
-      '<span class="fxnm">' + esc(blk.name) + "</span>" +
-      '<button class="fxbtn' + (blk.bypass ? "" : " on") + '" title="Bypass">&#9211;</button>' +
-      '<button class="fxbtn" title="Mover derecha">&#9654;</button>' +
-      '<button class="fxbtn" title="Quitar">&#10005;</button>';
-    const btns = head.querySelectorAll("button");
-    btns[0].addEventListener("click", async () => renderChain(await fxMove(blk.uid, idx - 1)));
-    btns[1].addEventListener("click", async () => renderChain(await fxBypass(blk.uid, !blk.bypass)));
-    btns[2].addEventListener("click", async () => renderChain(await fxMove(blk.uid, idx + 1)));
-    btns[3].addEventListener("click", async () => renderChain(await fxRemove(blk.uid)));
+    sec.className = "block fxblock k-" + blk.kind + (blk.bypass ? " byp" : "");
+    const head = blockHeader(blk);
+    head.draggable = true;
+    head.addEventListener("dragstart", (e) => {
+      dragUid = blk.uid; sec.classList.add("dragging");
+      if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setDragImage(sec, 20, 20); } catch (_) {} }
+    });
+    head.addEventListener("dragend", () => {
+      dragUid = null; sec.classList.remove("dragging");
+      fxRack.querySelectorAll(".dragover").forEach((x) => x.classList.remove("dragover"));
+    });
+    sec.addEventListener("dragover", (e) => { e.preventDefault(); if (dragUid != null && dragUid !== blk.uid) sec.classList.add("dragover"); });
+    sec.addEventListener("dragleave", () => sec.classList.remove("dragover"));
+    sec.addEventListener("drop", async (e) => {
+      e.preventDefault(); sec.classList.remove("dragover");
+      if (dragUid != null && dragUid !== blk.uid) renderChain(await fxMove(dragUid, idx));
+    });
     sec.appendChild(head);
-    blk.params.forEach((p) => sec.appendChild(makeFxKnob(blk.uid, p)));
+    blockBody(sec, blk);
     fxRack.appendChild(sec);
-    if (idx < chain.length - 1) {
-      const ar = document.createElement("div");
-      ar.className = "arrow";
-      fxRack.appendChild(ar);
-    }
+    if (idx < chain.length - 1) { const ar = document.createElement("div"); ar.className = "arrow"; fxRack.appendChild(ar); }
   });
 }
 
 async function refreshChain() { try { renderChain(await fxGetChain()); } catch (e) {} }
 
+// menú "+ Efecto" agrupado por categorías
 $("fx-add-btn").addEventListener("click", async (e) => {
   e.stopPropagation();
   if (!fxMenu.hidden) { fxMenu.hidden = true; return; }
   let types = [];
   try { types = await fxTypes(); } catch (e2) {}
+  const cats = {};
+  types.forEach((t) => { (cats[t.category] = cats[t.category] || []).push(t); });
   fxMenu.innerHTML = "";
-  types.forEach((t) => {
-    const it = document.createElement("div");
-    it.className = "fxmitem";
-    it.textContent = t.name;
-    it.addEventListener("click", async () => { fxMenu.hidden = true; renderChain(await fxAdd(t.type)); });
-    fxMenu.appendChild(it);
+  Object.keys(cats).forEach((cat) => {
+    const h = document.createElement("div"); h.className = "fxmcat"; h.textContent = cat;
+    fxMenu.appendChild(h);
+    cats[cat].forEach((t) => {
+      const it = document.createElement("div"); it.className = "fxmitem"; it.textContent = t.name;
+      it.addEventListener("click", async () => { fxMenu.hidden = true; renderChain(await fxAdd(t.type)); });
+      fxMenu.appendChild(it);
+    });
   });
   fxMenu.hidden = false;
 });
-document.addEventListener("click", (e) => {
-  if (!fxMenu.hidden && !e.target.closest(".fxaddwrap")) fxMenu.hidden = true;
-});
+document.addEventListener("click", (e) => { if (!fxMenu.hidden && !e.target.closest(".fxaddwrap")) fxMenu.hidden = true; });
 refreshChain();
 
 // ===== medidores + afinador (evento "meters") =====

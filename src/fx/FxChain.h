@@ -2,6 +2,7 @@
 #include "FxBlock.h"
 #include <vector>
 #include <memory>
+#include <functional>
 
 //==============================================================================
 // Rack flexible de efectos: lista ordenable de FxBlock. El audio thread procesa
@@ -12,6 +13,9 @@
 class FxChain
 {
 public:
+    using BlockFactory = std::function<std::unique_ptr<FxBlock> (const juce::String&)>;
+    void setFactory (BlockFactory f) { factory = std::move (f); }
+
     void prepare (double sampleRate, int blockSize);
     void processMono (float* data, int n);                 // audio thread
 
@@ -30,8 +34,11 @@ public:
 private:
     FxBlock* find (int uid) const;
 
+    std::unique_ptr<FxBlock> make (const juce::String& typeId) const;
+
     std::vector<std::unique_ptr<FxBlock>> blocks;
     juce::CriticalSection lock;        // sólo ediciones estructurales
+    BlockFactory factory;              // crea bloques (incluye amp/cab/drive)
     double sampleRate { 48000.0 };
     int    blockSize  { 512 };
     int    nextUid    { 1 };

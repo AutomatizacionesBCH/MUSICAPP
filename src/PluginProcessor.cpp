@@ -1,6 +1,10 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "WebUIEditor.h"
+#include "fx/FxFactory.h"
+#include "fx/blocks/FxDrive.h"
+#include "fx/blocks/FxAmpRef.h"
+#include "fx/blocks/FxCabRef.h"
 
 #include <cmath>
 #include <filesystem>
@@ -87,12 +91,21 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
 {
     mInputGainDb  = apvts.getRawParameterValue ("inputGain");
     mOutputGainDb = apvts.getRawParameterValue ("outputGain");
-    mIrOn         = apvts.getRawParameterValue ("irOn");
-    mDriveOn      = apvts.getRawParameterValue ("driveOn");
-    mDriveAmount  = apvts.getRawParameterValue ("driveAmount");
-    mDriveLevel   = apvts.getRawParameterValue ("driveLevel");
 
-    // Rack por defecto: una reverb, para que la app suene con cola al arrancar.
+    // La cadena crea Drive/Amp/Cab (necesitan el host=this) + delega los efectos
+    // a FxFactory. Toda la cadena es una sola lista reordenable.
+    mFxChain.setFactory ([this] (const juce::String& t) -> std::unique_ptr<FxBlock>
+    {
+        if (t == "drive") return std::make_unique<FxDrive>();
+        if (t == "amp")   return std::make_unique<FxAmpRef> (this);
+        if (t == "cab")   return std::make_unique<FxCabRef> (this);
+        return FxFactory::create (t);
+    });
+
+    // Cadena por defecto: Drive(off) -> Amp -> Cab(off) -> Reverb.
+    mFxChain.add ("drive");
+    mFxChain.add ("amp");
+    mFxChain.add ("cab");
     mFxChain.add ("reverb");
 
     // Carga inicial del modelo por defecto (el audio aún no corre, así que es
@@ -135,19 +148,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout MusicAppAudioProcessor::crea
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "outputGain", 1 }, "Output Gain",
         juce::NormalisableRange<float> (-24.0f, 24.0f, 0.1f), 0.0f));
-
-    layout.add (std::make_unique<juce::AudioParameterBool> (
-        juce::ParameterID { "irOn", 1 }, "Cabinet IR", false));
-
-    // Drive (pre-FX, overdrive antes del NAM)
-    layout.add (std::make_unique<juce::AudioParameterBool> (
-        juce::ParameterID { "driveOn", 1 }, "Drive", false));
-    layout.add (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "driveAmount", 1 }, "Drive Amount",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.3f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "driveLevel", 1 }, "Drive Level",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.7f));
 
     return layout;
 }
@@ -220,10 +220,10 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     const float inGain  = juce::Decibels::decibelsToGain (mInputGainDb->load());
     const float outGain = juce::Decibels::decibelsToGain (mOutputGainDb->load());
 
-    const int n = juce::jmin (numSamples, (int) mInScratch.size());
+    const int n = juce::jmin (numSamples, (int) mWork.size());
 
-    // 1) Suma de TODAS las entradas a mono (la guitarra puede estar en input 1/L o
-    //    2/R) + medición de pico de entrada. Copiamos ANTES de escribir salidas.
+    // 1) Suma de TODAS las entradas a mono float * IN gain (la guitarra puede estar
+    //    en input 1/L o 2/R) + pico de entrada + entrada cruda al ring (afinador).
     const int numIn = juce::jmin (getTotalNumInputChannels(), numCh);
     float inPeak = 0.0f;
     int ringW = mInWrite.load();
@@ -233,55 +233,19 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         for (int ch = 0; ch < numIn; ++ch)
             s += (double) buffer.getReadPointer (ch)[i];
         inPeak = juce::jmax (inPeak, std::abs ((float) s));
-        mInScratch[(size_t) i] = s * inGain;
-        mInRing[(size_t) (ringW % kInRingSize)] = (float) s;   // entrada cruda para el afinador
+        mWork[(size_t) i] = (float) (s * inGain);
+        mInRing[(size_t) (ringW % kInRingSize)] = (float) s;
         ++ringW;
     }
     mInWrite.store (ringW);
     mInPeak.store (inPeak);
 
-    // 1.5) Drive (pre-FX): overdrive por soft-clip (tanh) antes del NAM.
-    if (mDriveOn != nullptr && mDriveOn->load() > 0.5f)
-    {
-        const double driveGain = 1.0 + (double) mDriveAmount->load() * 30.0;   // 1..31
-        const double level     = (double) mDriveLevel->load();
-        for (int i = 0; i < n; ++i)
-            mInScratch[(size_t) i] = std::tanh (mInScratch[(size_t) i] * driveGain) * level;
-    }
-
-    // 2) Amplificador NAM.
-    if (mModel != nullptr)
-    {
-        double* inPtr[1]  = { mInScratch.data() };
-        double* outPtr[1] = { mOutScratch.data() };
-        mModel->process (inPtr, outPtr, n);
-    }
-    else
-    {
-        for (int i = 0; i < n; ++i)   // sin modelo: passthrough
-            mOutScratch[(size_t) i] = mInScratch[(size_t) i];
-    }
-
-    // 3) Normalización por loudness -> buffer float de trabajo.
-    const float normGain = mNormGain.load();
-    for (int i = 0; i < n; ++i)
-        mWork[(size_t) i] = (float) (mOutScratch[(size_t) i] * normGain);
-
-    // 3.5) Cabinet IR (convolución, post-NAM). Bypass real: si está OFF no se procesa.
-    if (mIrOn != nullptr && mIrOn->load() > 0.5f)
-    {
-        float* irChans[1] = { mWork.data() };
-        juce::dsp::AudioBlock<float> irBlock (irChans, 1, (size_t) n);
-        juce::dsp::ProcessContextReplacing<float> irCtx (irBlock);
-        mConvolution.process (irCtx);
-    }
-
-    // 3.6) Rack flexible de efectos (mod/delay/pitch/reverb), post-cab. Procesa
-    //      sus bloques en orden; lock-free (ScopedTryLock) -> nunca bloquea.
+    // 2) Cadena flexible COMPLETA: Drive -> Amp(NAM) -> Cab(IR) -> efectos, en el
+    //    orden que el usuario haya puesto (los bloques ancla llaman hostProcess*).
+    //    Lock-free (ScopedTryLock) -> nunca bloquea el audio thread.
     mFxChain.processMono (mWork.data(), n);
 
-    // 5) Output gain + SEGURIDAD (NaN/Inf->0, recorte +-1 para no mandar nunca una
-    //    señal descontrolada a la interfaz) + medición de pico de salida.
+    // 3) OUT gain + SEGURIDAD (NaN/Inf->0, recorte +-1) + pico de salida.
     float outPeak = 0.0f;
     for (int i = 0; i < n; ++i)
     {
@@ -293,7 +257,7 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     }
     mOutPeak.store (outPeak);
 
-    // 6) Volcamos el mono procesado a todas las salidas.
+    // 4) Volcamos el mono procesado a todas las salidas.
     for (int ch = 0; ch < numCh; ++ch)
     {
         float* out = buffer.getWritePointer (ch);
@@ -302,6 +266,31 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         for (int i = n; i < numSamples; ++i)
             out[i] = 0.0f;
     }
+}
+
+//==============================================================================
+// FxHost: los bloques ancla Amp/Cab invocan estos. Corren en el audio thread.
+void MusicAppAudioProcessor::hostProcessAmp (float* data, int n)
+{
+    if (mModel == nullptr)
+        return;   // sin modelo: passthrough
+    const int m = juce::jmin (n, (int) mInScratch.size());
+    for (int i = 0; i < m; ++i)
+        mInScratch[(size_t) i] = (double) data[i];
+    double* in[1]  = { mInScratch.data() };
+    double* out[1] = { mOutScratch.data() };
+    mModel->process (in, out, m);
+    const float ng = mNormGain.load();
+    for (int i = 0; i < m; ++i)
+        data[i] = (float) (mOutScratch[(size_t) i] * ng);
+}
+
+void MusicAppAudioProcessor::hostProcessCab (float* data, int n)
+{
+    float* chans[1] = { data };
+    juce::dsp::AudioBlock<float> block (chans, 1, (size_t) n);
+    juce::dsp::ProcessContextReplacing<float> ctx (block);
+    mConvolution.process (ctx);
 }
 
 //==============================================================================

@@ -39,6 +39,12 @@ public:
     virtual void reset() = 0;
     virtual void processMono (float* data, int n) = 0;   // in-place, mono
 
+    // "fx" (perillas) | "amp" (NAM, foto) | "cab" (IR, foto) | "drive" (perillas).
+    // Define cómo lo dibuja la UI. Los anclas (amp/cab/drive) no se pueden quitar.
+    virtual juce::String kind() const { return "fx"; }
+    virtual bool removable() const { return true; }
+    virtual juce::var extra() const { return {}; }   // datos extra para la UI (p.ej. nombre cargado)
+
     int uid = 0;                                  // id de instancia (lo asigna FxChain)
     std::atomic<bool> bypassed { false };
     std::vector<std::unique_ptr<FxParam>> params;

@@ -22,12 +22,12 @@ namespace FxFactory
     juce::Array<TypeInfo> available()
     {
         return {
-            TypeInfo { "chorus",  "Chorus" },
-            TypeInfo { "flanger", "Flanger" },
-            TypeInfo { "phaser",  "Phaser" },
-            TypeInfo { "tremolo", "Tremolo" },
-            TypeInfo { "delay",   "Delay" },
-            TypeInfo { "reverb",  "Reverb" },
+            TypeInfo { "chorus",  "Chorus",  "Modulacion" },
+            TypeInfo { "flanger", "Flanger", "Modulacion" },
+            TypeInfo { "phaser",  "Phaser",  "Modulacion" },
+            TypeInfo { "tremolo", "Tremolo", "Modulacion" },
+            TypeInfo { "delay",   "Delay",   "Delay" },
+            TypeInfo { "reverb",  "Reverb",  "Reverb" },
         };
     }
 }

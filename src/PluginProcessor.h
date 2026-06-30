@@ -9,13 +9,15 @@
 #include "NAM/dsp.h"
 #include "NAM/get_dsp.h"
 #include "fx/FxChain.h"
+#include "fx/FxHost.h"
 
 //==============================================================================
 // Motor de audio "headless": input -> NAM -> output.
 // El estado (gains) vive en APVTS; la UI sólo habla por APVTS + métodos públicos.
 // (Spike Milestone 1 — sin IR ni efectos todavía.)
 //==============================================================================
-class MusicAppAudioProcessor : public juce::AudioProcessor
+class MusicAppAudioProcessor : public juce::AudioProcessor,
+                               public FxHost
 {
 public:
     MusicAppAudioProcessor();
@@ -55,9 +57,15 @@ public:
     juce::File getLoadedModelFile() const { return mLoadedModelFile; }
     juce::File getLoadedIRFile()    const { return mIrLoadedFile; }
 
-    // Rack flexible de efectos (mod/delay/pitch/reverb). La UI lo edita por
-    // funciones nativas; el audio thread lo procesa post-cab.
+    // Rack flexible: TODA la cadena (Drive/Amp/Cab + efectos) es una lista
+    // reordenable. La UI la edita por funciones nativas.
     FxChain& fx() { return mFxChain; }
+
+    // FxHost: los bloques ancla (Amp/Cab) invocan el motor pesado por aquí.
+    void hostProcessAmp (float* data, int n) override;
+    void hostProcessCab (float* data, int n) override;
+    juce::String hostAmpName() override { return mLoadedModelName; }
+    juce::String hostCabName() override { return mIrLoadedName; }
 
     // Medidores (read-only para la UI): pico [0..1] del último bloque.
     float getInPeak()  const { return mInPeak.load(); }
@@ -105,12 +113,8 @@ private:
     std::array<float, kInRingSize> mInRing {};
     std::atomic<int> mInWrite { 0 };
 
-    std::atomic<float>* mInputGainDb  = nullptr;
-    std::atomic<float>* mOutputGainDb = nullptr;
-    std::atomic<float>* mIrOn          = nullptr;   // bypass del Cabinet IR
-    std::atomic<float>* mDriveOn       = nullptr;   // bypass del drive (pre-FX)
-    std::atomic<float>* mDriveAmount   = nullptr;
-    std::atomic<float>* mDriveLevel    = nullptr;
+    std::atomic<float>* mInputGainDb  = nullptr;   // IN (gain fijo, antes de la cadena)
+    std::atomic<float>* mOutputGainDb = nullptr;   // OUT (gain fijo, después de la cadena)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessor)
 };
