@@ -25,6 +25,7 @@ public:
     void move (int uid, int newIndex);
     void setBypass (int uid, bool bypassed);
     void setParam (int uid, const juce::String& paramId, float value);
+    void loadFileInto (int uid, const juce::File& file);   // p.ej. pedal .nam al Drive
     void clear();
 
     juce::var       describe() const;                       // JSON para la UI

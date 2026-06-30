@@ -48,7 +48,14 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  .withOptionsFrom (outputRelay)
                  .withNativeFunction ("loadModel",
                      [this] (const juce::Array<juce::var>&, auto complete)
-                     { openModelBrowser(); complete (juce::var()); })
+                     { mModelLoadTarget = 0; openModelBrowser(); complete (juce::var()); })
+                 .withNativeFunction ("loadPedal",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         mModelLoadTarget = args.size() > 0 ? (int) args[0] : 0;   // uid del bloque Drive
+                         openModelBrowser();
+                         complete (juce::var());
+                     })
                  .withNativeFunction ("loadIR",
                      [this] (const juce::Array<juce::var>&, auto complete)
                      { chooseIR(); complete (juce::var()); })
@@ -298,8 +305,16 @@ void WebUIEditor::openModelBrowser()
     browser->setSize (560, 460);
     browser->onLoad = [this] (juce::File f)
     {
-        if (processorRef.loadNamModel (f))
+        if (mModelLoadTarget <= 0)                       // 0 = amp
+        {
+            if (processorRef.loadNamModel (f))
+                notifyChanged();
+        }
+        else                                             // pedal .nam a un bloque (Drive)
+        {
+            processorRef.fx().loadFileInto (mModelLoadTarget, f);
             notifyChanged();
+        }
     };
     browser->onFolderChanged = [this] (juce::File dir)
     {

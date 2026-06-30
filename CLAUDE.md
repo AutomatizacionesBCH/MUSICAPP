@@ -136,6 +136,15 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   Nombre = carpeta del tono des-slugificada (`fender-super-reverb-1977` → "Fender Super Reverb 1977") + sub
   `{gear} · {arch a1/a2}`. "Cargar IR" apunta a `downloads/cab` (770 IRs ya bajados). Descarga de tone3000
   cortada (catálogo completo ~45 GB / días — no vale la pena).
+- **Drive carga pedales `.nam` ✅ (2026-06-30):** el bloque Drive es **híbrido** — si cargas una captura de
+  pedal (drive/OD/fuzz/boost) corre la NAM; si no, el overdrive `tanh`. `FxDrive` posee su propio modelo NAM
+  (staging atómico igual que el amp; incluye `NAM/dsp.h`), `loadFile` en el message thread. **DRIVE** = pre-gain
+  hacia la captura (1..5×, empuja la no-linealidad); **LEVEL** = salida. Contrato genérico en `FxBlock`
+  (`canLoadFile`/`loadFile`/`loadedFileName`) + `FxChain::loadFileInto(uid,file)`. UI: botón "Cargar pedal"
+  en el bloque drive → función nativa `loadPedal(uid)` (reusa el ModelBrowser, ruteado por `mModelLoadTarget`:
+  0=amp, uid=pedal). Verificado: carga el Marshall Bluesbreaker y procesa sin NaN. **Ojo:** una captura `.nam`
+  NO tiene perillas del pedal (caja negra, ajuste fijo) — se elige entre capturas (packs); DRIVE/LEVEL del
+  bloque son push-de-entrada + salida, no las perillas internas. **Pendiente:** persistir el pedal en presets.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS

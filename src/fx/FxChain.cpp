@@ -87,6 +87,15 @@ void FxChain::setParam (int uid, const juce::String& paramId, float value)
             p->set (value);
 }
 
+void FxChain::loadFileInto (int uid, const juce::File& file)
+{
+    // message thread: loadFile prepara el modelo y lo entrega por staging atómico;
+    // no toca la estructura de la cadena, así que no necesita el lock.
+    if (auto* b = find (uid))
+        if (b->canLoadFile())
+            b->loadFile (file);
+}
+
 void FxChain::clear()
 {
     std::vector<std::unique_ptr<FxBlock>> dead;

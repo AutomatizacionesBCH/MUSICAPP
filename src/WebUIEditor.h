@@ -52,6 +52,7 @@ private:
     std::unique_ptr<juce::PropertiesFile> mSettings;
     std::unique_ptr<juce::DocumentWindow> mBrowserWindow;
     std::unique_ptr<juce::FileChooser>    mChooser;
+    int mModelLoadTarget = 0;   // 0 = amp; >0 = uid del bloque (pedal .nam al Drive)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebUIEditor)
 };

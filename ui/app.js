@@ -124,6 +124,7 @@ function bindToggle(id, paramName) {
 
 // ===== rack flexible: TODA la cadena (Drive/Amp/Cab + efectos), arrastrable =====
 const loadModel = Juce.getNativeFunction("loadModel");
+const loadPedal = Juce.getNativeFunction("loadPedal");
 const fxTypes = Juce.getNativeFunction("fxTypes");
 const fxGetChain = Juce.getNativeFunction("fxGetChain");
 const fxAdd = Juce.getNativeFunction("fxAdd");
@@ -207,6 +208,17 @@ function blockBody(sec, blk) {
     sec.append(photo, nm, btn);
   } else {
     (blk.params || []).forEach((p) => sec.appendChild(makeKnob(blk.uid, p)));
+    if (blk.kind === "drive") {
+      const loaded = (blk.extra && blk.extra.loaded) || "";
+      if (loaded) {
+        const nm = document.createElement("div"); nm.className = "lname small"; nm.textContent = loaded;
+        sec.appendChild(nm);
+      }
+      const btn = document.createElement("button"); btn.className = "change";
+      btn.textContent = loaded ? "Cambiar pedal" : "Cargar pedal";
+      btn.addEventListener("click", (e) => { e.stopPropagation(); loadPedal(blk.uid); });
+      sec.appendChild(btn);
+    }
   }
 }
 

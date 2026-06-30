@@ -45,6 +45,12 @@ public:
     virtual bool removable() const { return true; }
     virtual juce::var extra() const { return {}; }   // datos extra para la UI (p.ej. nombre cargado)
 
+    // Bloques que pueden cargar un archivo propio (p.ej. el Drive carga un pedal
+    // .nam). loadFile corre en el MESSAGE thread (prepara + stage thread-safe).
+    virtual bool         canLoadFile() const { return false; }
+    virtual void         loadFile (const juce::File&) {}
+    virtual juce::String loadedFileName() const { return {}; }
+
     int uid = 0;                                  // id de instancia (lo asigna FxChain)
     std::atomic<bool> bypassed { false };
     std::vector<std::unique_ptr<FxParam>> params;
