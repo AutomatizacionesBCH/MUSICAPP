@@ -164,8 +164,11 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   perilla (abreviatura-conocida + número-en-rango), **inclusivo** (sólo acepta lo que parece perilla → ignora
   capturer/load/mic/ESR/año/n° de modelo por construcción) con guardas: 1 letra ⇒ 0..10, palabra ⇒ 0..100,
   ≥3 dígitos descarta, `M` sólo con EQ, `V` suelto = versión, dedupe, máx 7 tokens; bloque pegado `T6B6D9V6`
-  se segmenta. Sin settings ⇒ fallback a mic/EQ con filtro de ruido (`isNoiseToken`). `detail` = settings/mic
-  `+  [A1|A2]`. Caracterización (workflow): ~50-70% de archivos traen settings parseables. **Bug corregido:**
+  se segmenta. Sin settings ⇒ fallback a mic/EQ con filtro de ruido (`isNoiseToken`). `detail` = settings/mic.
+  **Arquitectura (A1/A2/custom) como badge de color** (campo `Entry.arch` vía `archOf()`): A2 naranja (más
+  nuevo/fiel), A1 azul, CUSTOM violeta. Se dibuja en la lista WebView (`.arch` CSS) y en el popup nativo
+  (`paintListBoxItem` reserva espacio a la derecha). Los IRs no llevan badge.
+  Caracterización (workflow): ~50-70% de archivos traen settings parseables. **Bug corregido:**
   `addTokens(base,"__")` partía por el char `_` (arch salía vacío) → ahora se parte por el STRING `"__"`.
   El catálogo está en `Scrapper/downloads/{gear}/{make}/{tone}/`; metadata en `metadata.jsonl`
   (`description` a veces trae settings, `makes`, `tags`, `downloads_count` para popularidad futura).

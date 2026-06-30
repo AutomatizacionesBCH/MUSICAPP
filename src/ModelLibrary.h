@@ -16,7 +16,8 @@ public:
         juce::String relPath;   // ruta relativa (para búsqueda)
         juce::String gear;      // "amp" | "amp-cab" | "pedal" | "cab" | "experimental" | "outboard"
         juce::String display;   // nombre corto del equipo (ej. "Fender Super Reverb 1977")
-        juce::String detail;    // EQ / mic / arquitectura (ej. "EQ Flat, sm57 · A1")
+        juce::String detail;    // settings (P5 B6 M8 T6...) o mic/EQ
+        juce::String arch;      // "a1" | "a2" | "custom" | "" (IRs/desconocido) -> badge en la lista
         bool         isIR = false;   // .wav (cabinet IR)
     };
 

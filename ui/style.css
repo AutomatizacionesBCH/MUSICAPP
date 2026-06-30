@@ -61,6 +61,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 .minfo{min-width:0;flex:1;}
 .mname{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .msub{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* badge de arquitectura NAM (A1 / A2 / CUSTOM) */
+.arch{flex:0 0 auto;font-size:9px;font-weight:800;letter-spacing:.5px;line-height:1;
+  padding:3px 6px;border-radius:5px;border:1px solid transparent;}
+.arch.a1{color:#9fc7ff;background:rgba(86,132,201,.16);border-color:rgba(86,132,201,.40);}
+.arch.a2{color:#1a0e06;background:var(--accent);}            /* A2 = más nuevo/fiel -> naranja */
+.arch.custom{color:#d8b4fe;background:rgba(150,90,210,.18);border-color:rgba(150,90,210,.45);}
 .bcount{font-size:10px;color:var(--dim);}
 
 /* ===== Stage / cadena ===== */

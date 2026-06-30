@@ -93,13 +93,36 @@ void ModelBrowser::paintListBoxItem (int row, juce::Graphics& g, int w, int h, b
         g.setColour (cAccent);
         g.fillRect (0, 0, 3, h);
     }
+    // Badge de arquitectura (A1 / A2 / CUSTOM) a la derecha; reserva su espacio.
+    int textRight = w - 16;
+    if (e.arch.isNotEmpty())
+    {
+        const juce::String label = e.arch.toUpperCase();
+        const int bw = (label.length() <= 2) ? 28 : 54;
+        const int bh = 16;
+        const int bx = w - bw - 10;
+        const int by = (h - bh) / 2;
+
+        juce::Colour bg, fg;
+        if (e.arch == "a2")          { bg = cAccent;                                    fg = juce::Colour (0xff1a0e06); }
+        else if (e.arch == "custom") { bg = juce::Colour (0xff8a5ad2).withAlpha (0.22f); fg = juce::Colour (0xffd8b4fe); }
+        else                         { bg = juce::Colour (0xff5684c9).withAlpha (0.20f); fg = juce::Colour (0xff9fc7ff); }
+
+        g.setColour (bg);
+        g.fillRoundedRectangle ((float) bx, (float) by, (float) bw, (float) bh, 4.0f);
+        g.setColour (fg);
+        g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
+        g.drawText (label, bx, by, bw, bh, juce::Justification::centred, false);
+        textRight = bx - 8;
+    }
+
     g.setColour (cText);
     g.setFont (juce::Font (juce::FontOptions (13.5f, juce::Font::bold)));
-    g.drawText (e.display, 12, 4, w - 16, 19, juce::Justification::centredLeft, true);
+    g.drawText (e.display, 12, 4, textRight - 12, 19, juce::Justification::centredLeft, true);
 
     g.setColour (cText3);
     g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText (e.detail, 12, 22, w - 16, 15, juce::Justification::centredLeft, true);
+    g.drawText (e.detail, 12, 22, textRight - 12, 15, juce::Justification::centredLeft, true);
 }
 
 void ModelBrowser::listBoxItemDoubleClicked (int row, const juce::MouseEvent&)

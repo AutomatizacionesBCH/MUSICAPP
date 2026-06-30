@@ -177,18 +177,26 @@ namespace
         return false;
     }
 
-    // Detalle corto: settings (gain/bass/mid/treble...) o mic/EQ + arquitectura (a1/a2).
+    // Arquitectura del modelo desde el filename {modelName}__{size}__{arch}__{id}:
+    // "a1" | "a2" | "custom" | "" (IRs / desconocido).
+    juce::String archOf (const juce::String& fileName)
+    {
+        const juce::String base = fileName.upToLastOccurrenceOf (".", false, false);
+        if (! base.contains ("__"))
+            return {};
+        const juce::String a = base.upToLastOccurrenceOf ("__", false, false)
+                                   .fromLastOccurrenceOf ("__", false, false)
+                                   .toLowerCase();
+        return (a == "a1" || a == "a2" || a == "custom") ? a : juce::String();
+    }
+
+    // Detalle corto: settings (gain/bass/mid/treble...) o mic/EQ (la arquitectura va aparte, en un badge).
     juce::String fileDetail (const juce::String& fileName, const juce::String& equipment)
     {
         // {modelName}__{size}__{arch}__{id}  (separador es el STRING "__", no el char '_')
         const juce::String base = fileName.upToLastOccurrenceOf (".", false, false);
-        juce::String modelName = base, arch;
-        if (base.contains ("__"))
-        {
-            modelName = base.upToFirstOccurrenceOf ("__", false, false);
-            arch      = base.upToLastOccurrenceOf ("__", false, false)
-                            .fromLastOccurrenceOf ("__", false, false);
-        }
+        const juce::String modelName = base.contains ("__")
+            ? base.upToFirstOccurrenceOf ("__", false, false) : base;
 
         juce::String body = parseSettings (modelName);   // perillas
 
@@ -212,9 +220,6 @@ namespace
             body = mn;
         }
 
-        if (arch.isNotEmpty() && ! arch.equalsIgnoreCase ("None") && ! arch.equalsIgnoreCase ("ir"))
-            body = body.isEmpty() ? ("[" + arch.toUpperCase() + "]")
-                                  : body + "  [" + arch.toUpperCase() + "]";
         return body;
     }
 
@@ -262,6 +267,7 @@ void ModelLibrary::rescan()
         if (e.display.isEmpty())
             e.display = f.getFileNameWithoutExtension();
         e.detail = fileDetail (f.getFileName(), e.display);
+        e.arch   = e.isIR ? juce::String() : archOf (f.getFileName());
         mEntries.add (e);
     }
 

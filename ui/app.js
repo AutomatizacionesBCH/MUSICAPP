@@ -20,10 +20,15 @@ function renderList(items) {
   items.forEach((it) => {
     const row = document.createElement("div");
     row.className = "mitem";
+    const arch = (it.arch || "").toLowerCase();
+    const badge = arch
+      ? '<span class="arch ' + arch + '" title="Arquitectura del modelo NAM">' + arch.toUpperCase() + "</span>"
+      : "";
     row.innerHTML =
       '<div class="mthumb">' + (it.ir ? "&#9636;" : "&#9835;") + '</div><div class="minfo">' +
       '<div class="mname">' + esc(it.name || "") + "</div>" +
-      '<div class="msub">' + esc(it.detail || it.gear || "") + "</div></div>";
+      '<div class="msub">' + esc(it.detail || it.gear || "") + "</div></div>" +
+      badge;
     row.addEventListener("click", async () => {
       document.querySelectorAll(".mitem.sel").forEach((e) => e.classList.remove("sel"));
       row.classList.add("sel");

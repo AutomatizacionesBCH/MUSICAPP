@@ -68,6 +68,7 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                              e->setProperty ("name",   entries[i].display);
                              e->setProperty ("detail", entries[i].detail);
                              e->setProperty ("gear",   entries[i].gear);
+                             e->setProperty ("arch",   entries[i].arch);
                              e->setProperty ("ir",     entries[i].isIR);
                              e->setProperty ("path",   entries[i].file.getFullPathName());
                              out.add (juce::var (e.get()));
