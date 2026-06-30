@@ -8,6 +8,7 @@
 
 #include "NAM/dsp.h"
 #include "NAM/get_dsp.h"
+#include "fx/FxChain.h"
 
 //==============================================================================
 // Motor de audio "headless": input -> NAM -> output.
@@ -54,6 +55,10 @@ public:
     juce::File getLoadedModelFile() const { return mLoadedModelFile; }
     juce::File getLoadedIRFile()    const { return mIrLoadedFile; }
 
+    // Rack flexible de efectos (mod/delay/pitch/reverb). La UI lo edita por
+    // funciones nativas; el audio thread lo procesa post-cab.
+    FxChain& fx() { return mFxChain; }
+
     // Medidores (read-only para la UI): pico [0..1] del último bloque.
     float getInPeak()  const { return mInPeak.load(); }
     float getOutPeak() const { return mOutPeak.load(); }
@@ -88,11 +93,9 @@ private:
     juce::String mIrLoadedName;
     juce::File   mIrLoadedFile;
 
-    juce::Reverb mReverb;                 // post-FX (mono)
-
-    // Chorus algorítmico (mod, post-amp/cab, pre-reverb). LFO + delay modulado
-    // (juce_dsp). No es una captura: es DSP con perillas, voiced estilo 80s.
-    juce::dsp::Chorus<float> mChorus;
+    // Rack flexible de efectos (mod/delay/pitch/reverb), post-cab. Reemplaza a
+    // los antiguos chorus/reverb fijos: ahora son bloques que se agregan/mueven.
+    FxChain mFxChain;
 
     std::atomic<float> mInPeak  { 0.0f };
     std::atomic<float> mOutPeak { 0.0f };
@@ -104,15 +107,10 @@ private:
 
     std::atomic<float>* mInputGainDb  = nullptr;
     std::atomic<float>* mOutputGainDb = nullptr;
-    std::atomic<float>* mReverbMix    = nullptr;
     std::atomic<float>* mIrOn          = nullptr;   // bypass del Cabinet IR
     std::atomic<float>* mDriveOn       = nullptr;   // bypass del drive (pre-FX)
     std::atomic<float>* mDriveAmount   = nullptr;
     std::atomic<float>* mDriveLevel    = nullptr;
-    std::atomic<float>* mChorusOn      = nullptr;   // bypass del chorus (post-amp)
-    std::atomic<float>* mChorusRate    = nullptr;   // Hz del LFO
-    std::atomic<float>* mChorusDepth   = nullptr;   // profundidad 0..1
-    std::atomic<float>* mChorusMix     = nullptr;   // dry/wet 0..1
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessor)
 };

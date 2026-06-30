@@ -1,5 +1,6 @@
 #include "WebUIEditor.h"
 #include "ModelBrowser.h"
+#include "fx/FxFactory.h"
 #include "BinaryData.h"
 #include <cstddef>
 #include <cstring>
@@ -45,15 +46,10 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  .withResourceProvider ([this] (const auto& url) { return provide (url); })
                  .withOptionsFrom (inputRelay)
                  .withOptionsFrom (outputRelay)
-                 .withOptionsFrom (reverbRelay)
                  .withOptionsFrom (irRelay)
                  .withOptionsFrom (driveAmtRelay)
                  .withOptionsFrom (driveLvlRelay)
                  .withOptionsFrom (driveOnRelay)
-                 .withOptionsFrom (chorusRateRelay)
-                 .withOptionsFrom (chorusDepthRelay)
-                 .withOptionsFrom (chorusMixRelay)
-                 .withOptionsFrom (chorusOnRelay)
                  .withNativeFunction ("loadModel",
                      [this] (const juce::Array<juce::var>&, auto complete)
                      { openModelBrowser(); complete (juce::var()); })
@@ -113,6 +109,54 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                          juce::DynamicObject::Ptr r = new juce::DynamicObject();
                          r->setProperty ("name", name);
                          complete (juce::var (r.get()));
+                     })
+                 //== Rack flexible de efectos ==
+                 .withNativeFunction ("fxTypes",
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     {
+                         juce::Array<juce::var> out;
+                         for (const auto& t : FxFactory::available())
+                         {
+                             juce::DynamicObject::Ptr o = new juce::DynamicObject();
+                             o->setProperty ("type", t.typeId);
+                             o->setProperty ("name", t.name);
+                             out.add (juce::var (o.get()));
+                         }
+                         complete (juce::var (out));
+                     })
+                 .withNativeFunction ("fxGetChain",
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     { complete (processorRef.fx().describe()); })
+                 .withNativeFunction ("fxAdd",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 0) processorRef.fx().add (args[0].toString());
+                         complete (processorRef.fx().describe());
+                     })
+                 .withNativeFunction ("fxRemove",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 0) processorRef.fx().remove ((int) args[0]);
+                         complete (processorRef.fx().describe());
+                     })
+                 .withNativeFunction ("fxMove",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 1) processorRef.fx().move ((int) args[0], (int) args[1]);
+                         complete (processorRef.fx().describe());
+                     })
+                 .withNativeFunction ("fxBypass",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 1) processorRef.fx().setBypass ((int) args[0], (bool) args[1]);
+                         complete (processorRef.fx().describe());
+                     })
+                 .withNativeFunction ("fxSetParam",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 2)
+                             processorRef.fx().setParam ((int) args[0], args[1].toString(), (float) (double) args[2]);
+                         complete (juce::var());
                      }))
 {
     addAndMakeVisible (webView);
@@ -121,8 +165,6 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  *processorRef.apvts.getParameter ("inputGain"),  inputRelay,  nullptr);
     outAtt = std::make_unique<juce::WebSliderParameterAttachment> (
                  *processorRef.apvts.getParameter ("outputGain"), outputRelay, nullptr);
-    revAtt = std::make_unique<juce::WebSliderParameterAttachment> (
-                 *processorRef.apvts.getParameter ("reverbMix"),  reverbRelay, nullptr);
     irAtt  = std::make_unique<juce::WebToggleButtonParameterAttachment> (
                  *processorRef.apvts.getParameter ("irOn"), irRelay, nullptr);
     drvAmtAtt = std::make_unique<juce::WebSliderParameterAttachment> (
@@ -131,14 +173,6 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  *processorRef.apvts.getParameter ("driveLevel"), driveLvlRelay, nullptr);
     drvOnAtt  = std::make_unique<juce::WebToggleButtonParameterAttachment> (
                  *processorRef.apvts.getParameter ("driveOn"), driveOnRelay, nullptr);
-    chRateAtt  = std::make_unique<juce::WebSliderParameterAttachment> (
-                 *processorRef.apvts.getParameter ("chorusRate"),  chorusRateRelay,  nullptr);
-    chDepthAtt = std::make_unique<juce::WebSliderParameterAttachment> (
-                 *processorRef.apvts.getParameter ("chorusDepth"), chorusDepthRelay, nullptr);
-    chMixAtt   = std::make_unique<juce::WebSliderParameterAttachment> (
-                 *processorRef.apvts.getParameter ("chorusMix"),   chorusMixRelay,   nullptr);
-    chOnAtt    = std::make_unique<juce::WebToggleButtonParameterAttachment> (
-                 *processorRef.apvts.getParameter ("chorusOn"), chorusOnRelay, nullptr);
 
     // Carpeta de librería persistida (para el ModelBrowser).
     juce::PropertiesFile::Options opts;
@@ -155,7 +189,7 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
     mLibrary.setFolder (libFolder);
 
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
-    setSize (1180, 780);
+    setSize (1480, 800);   // más ancho: el rack flexible crece; el resto hace scroll
 
     mPitchBuf.assign (2048, 0.0f);
     startTimerHz (24);   // medidores + afinador
@@ -232,7 +266,7 @@ void WebUIEditor::writePreset (const juce::String& nameIn)
     root->setProperty ("name", name);
 
     juce::DynamicObject::Ptr params = new juce::DynamicObject();
-    for (auto* id : { "inputGain", "outputGain", "reverbMix", "irOn" })
+    for (auto* id : { "inputGain", "outputGain", "irOn" })
         if (auto* param = processorRef.apvts.getParameter (id))
             params->setProperty (id, (double) param->getValue());   // valor normalizado [0,1]
     root->setProperty ("params", juce::var (params.get()));

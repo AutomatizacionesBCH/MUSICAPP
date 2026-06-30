@@ -69,19 +69,12 @@
         </section>
         <div class="arrow"></div>
 
-        <section class="block mod">
-          <div class="bh"><span class="accent">MOD &middot; CHORUS</span><span class="toggle" id="chorus-toggle">OFF</span></div>
-          <div class="kwrap"><div class="knob" id="k-chr"></div><div class="klabel">RATE</div><div class="kval" id="v-chr">0.80 Hz</div></div>
-          <div class="kwrap"><div class="knob" id="k-chd"></div><div class="klabel">DEPTH</div><div class="kval" id="v-chd">35%</div></div>
-          <div class="kwrap"><div class="knob" id="k-chm"></div><div class="klabel">MIX</div><div class="kval" id="v-chm">40%</div></div>
-        </section>
-        <div class="arrow"></div>
-
-        <section class="block fx">
-          <div class="bh"><span class="accent">POST &middot; REVERB</span></div>
-          <div class="fxicon">&#8767;</div>
-          <div class="kwrap"><div class="knob" id="k-rev"></div><div class="klabel">MIX</div><div class="kval" id="v-rev">0%</div></div>
-        </section>
+        <!-- Rack flexible: app.js lo llena dinámicamente (display:contents) -->
+        <div id="fx-rack" class="fxrack"></div>
+        <div class="fxaddwrap">
+          <button class="fxadd" id="fx-add-btn" title="Añadir efecto al rack">+ Efecto</button>
+          <div class="fxmenu" id="fx-menu" hidden></div>
+        </div>
         <div class="arrow"></div>
 
         <section class="block io">

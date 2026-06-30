@@ -98,7 +98,21 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   params `chorusOn`/`chorusRate`(0.1-5Hz)/`chorusDepth`/`chorusMix`. Se procesa post-cab, pre-reverb sobre
   `mWork` (mono). UI: bloque **MOD·CHORUS** (RATE/DEPTH/MIX + toggle), relays. Mono por ahora (el motor
   colapsa a mono temprano; chorus estéreo = mejora futura). Patrón reusable para delay/flanger/etc.
-  **Siguiente:** slot PEDAL NAM, grabador, metrónomo, gráficos por bloque.
+- **ASIO (baja latencia) ✅ (2026-06-29):** `JUCE_ASIO=1` + Steinberg ASIO SDK en `.asiosdk/` (gitignored,
+  no redistribuible) detectado en CMake. Resuelve la latencia alta de WASAPI (buffer ~480) → con un
+  driver ASIO (p.ej. MiniFuse) el usuario baja a 64-128. El usuario lo selecciona en Audio Settings.
+- **Cadena flexible de efectos ✅ (2026-06-29):** rack reordenable que reemplaza los chorus/reverb fijos.
+  `src/fx/`: `FxBlock` (interfaz; params atómicos), `FxChain` (rack `vector<FxBlock>` con **ScopedTryLock**
+  RT-safe — ediciones estructurales toman el lock, el audio thread nunca bloquea; `setParam`/`bypass`
+  lock-free), `FxFactory` (registro typeId→bloque). Motor: `IN→Drive→Amp(NAM)→Cab(IR)→[RACK]→OUT`.
+  **UI dinámica sin relays:** funciones nativas `fxTypes`/`fxGetChain`/`fxAdd`/`fxRemove`/`fxMove`/
+  `fxBypass`/`fxSetParam`; el JS dibuja el rack desde `describe()` (JSON) con perillas que llaman
+  `fxSetParam`, menú "+ Efecto", y botones ◀⏻▶✕ por bloque. Serializado en `getStateInformation`
+  (hijo `fxchain` del estado). **6 bloques:** chorus, flanger, phaser, tremolo, delay, reverb. Añadir un
+  efecto = 1 header en `src/fx/blocks/` + 1 línea en `FxFactory.cpp`. Ventana 1480×800 (la cadena crece).
+  **Catálogo-roadmap completo** (76 efectos, estado) en `docs/effects-catalog.md`.
+  **Siguiente:** poblar el rack (Pack 1: vibrato, uni-vibe, tape/BBD/ducking/reverse delay, hall/plate/
+  spring reverb, octaver, whammy) — paralelizable con workflow; luego slot PEDAL NAM, grabador, metrónomo.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar

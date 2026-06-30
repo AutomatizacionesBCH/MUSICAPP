@@ -113,6 +113,8 @@ target_sources(MusicApp PRIVATE
   src/ModelLibrary.cpp
   src/ModelBrowser.cpp
   src/WebUIEditor.cpp
+  src/fx/FxChain.cpp
+  src/fx/FxFactory.cpp
 )
 
 target_compile_features(MusicApp PRIVATE cxx_std_20)
