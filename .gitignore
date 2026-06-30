@@ -1,7 +1,8 @@
 # ---- Build ----
 build/
 cmake-build-*/
-.webview2/          # SDK WebView2 (NuGet, se descarga en build.ps1)
+# SDK WebView2 (NuGet, se descarga en build.ps1)
+.webview2/
 *.o
 *.obj
 *.a
