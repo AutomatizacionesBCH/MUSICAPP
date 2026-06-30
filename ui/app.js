@@ -143,7 +143,7 @@ const fmtDb = (v) => (v > 0 ? "+" : "") + v.toFixed(1) + " dB";
 bindKnob("k-in", "v-in", "inputGain", fmtDb);
 bindKnob("k-out", "v-out", "outputGain", fmtDb);
 
-// ===== zoom =====
+// ===== zoom (manual) =====
 let uiZoom = 1;
 function applyZoom() {
   document.body.style.zoom = uiZoom;

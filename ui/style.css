@@ -75,9 +75,10 @@ body{
 
 /* ============ MAIN ============ */
 .main{display:flex;align-items:stretch}
-.stage{flex:0 0 auto;width:calc(100% - 320px);min-width:0;overflow:hidden;
+.stage{flex:1 1 0;min-width:0;overflow:hidden;
   position:relative;padding:14px 16px 0;display:flex;flex-direction:column}
-.browser{flex:0 0 auto;width:320px;border-left:1px solid var(--line);
+/* browser a la IZQUIERDA (fijo) y la cadena a la derecha (scrollea) -> layout robusto que entra siempre */
+.browser{order:-1;flex:0 0 320px;border-right:1px solid var(--line);
   background:linear-gradient(180deg,#14100b,#0b0805);display:flex;flex-direction:column;}
 
 /* ===== SIGNAL CHAIN ===== */
