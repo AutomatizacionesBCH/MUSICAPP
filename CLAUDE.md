@@ -73,6 +73,13 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   (medidores + afinador). Controles **reales** (sin EQ falsa de amp; NAM es caja negra). Ventana 1180×780.
   **Pulido pendiente:** el extremo derecho de la barra superior se recorta por el viewport DPI; añadir
   drive, presets (guardar/cargar rig), grabador, metrónomo; gráficos de ampli/pedal por bloque.
+- **UI WebView — presets ✅ (2026-06-29):** guardar/cargar el rig. Un preset = params normalizados
+  (input/output/reverb/irOn) + rutas del modelo NAM y del IR, en JSON en `~/Documents/Music App/presets/`.
+  Nombre de preset editable en la barra superior; **Guardar** (función nativa `savePreset`) escribe el
+  JSON; **Presets** (`listPresets`) despliega la lista y al elegir (`loadPreset`/`applyPreset`) restaura
+  todo (params vía `setValueNotifyingHost` → los relays mueven los knobs; recarga modelo/IR). Guardado
+  verificado (escribe JSON correcto con params + rutas). Nota: el **input sintético no llega al WebView2**
+  (limitación de automatización; los clicks reales del usuario sí) — verificar features de click en vivo.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar

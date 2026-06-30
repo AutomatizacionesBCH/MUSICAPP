@@ -78,6 +78,34 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                                  notifyChanged();
                          }
                          complete (juce::var());
+                     })
+                 .withNativeFunction ("savePreset",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 0) writePreset (args[0].toString());
+                         complete (juce::var());
+                     })
+                 .withNativeFunction ("listPresets",
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     {
+                         juce::Array<juce::var> out;
+                         for (const auto& f : presetsDir().findChildFiles (juce::File::findFiles, false, "*.json"))
+                         {
+                             juce::DynamicObject::Ptr e = new juce::DynamicObject();
+                             e->setProperty ("name", f.getFileNameWithoutExtension());
+                             e->setProperty ("path", f.getFullPathName());
+                             out.add (juce::var (e.get()));
+                         }
+                         complete (juce::var (out));
+                     })
+                 .withNativeFunction ("loadPreset",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         juce::String name;
+                         if (args.size() > 0) name = applyPreset (juce::File (args[0].toString()));
+                         juce::DynamicObject::Ptr r = new juce::DynamicObject();
+                         r->setProperty ("name", name);
+                         complete (juce::var (r.get()));
                      }))
 {
     addAndMakeVisible (webView);
@@ -164,6 +192,55 @@ float WebUIEditor::detectPitch()
 void WebUIEditor::notifyChanged()
 {
     webView.emitEventIfBrowserIsVisible ("modelChanged", juce::var());
+}
+
+//==============================================================================
+juce::File WebUIEditor::presetsDir() const
+{
+    return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+             .getChildFile ("Music App").getChildFile ("presets");
+}
+
+void WebUIEditor::writePreset (const juce::String& nameIn)
+{
+    const juce::String name = nameIn.trim().isEmpty() ? juce::String ("preset") : nameIn.trim();
+    auto dir = presetsDir();
+    dir.createDirectory();
+
+    juce::DynamicObject::Ptr root = new juce::DynamicObject();
+    root->setProperty ("name", name);
+
+    juce::DynamicObject::Ptr params = new juce::DynamicObject();
+    for (auto* id : { "inputGain", "outputGain", "reverbMix", "irOn" })
+        if (auto* param = processorRef.apvts.getParameter (id))
+            params->setProperty (id, (double) param->getValue());   // valor normalizado [0,1]
+    root->setProperty ("params", juce::var (params.get()));
+    root->setProperty ("modelPath", processorRef.getLoadedModelFile().getFullPathName());
+    root->setProperty ("irPath",    processorRef.getLoadedIRFile().getFullPathName());
+
+    const auto safe = juce::File::createLegalFileName (name);
+    dir.getChildFile (safe + ".json").replaceWithText (juce::JSON::toString (juce::var (root.get())));
+}
+
+juce::String WebUIEditor::applyPreset (const juce::File& file)
+{
+    const auto v = juce::JSON::parse (file.loadFileAsString());
+    if (! v.isObject())
+        return {};
+
+    if (auto* params = v.getProperty ("params", juce::var()).getDynamicObject())
+        for (const auto& kv : params->getProperties())
+            if (auto* param = processorRef.apvts.getParameter (kv.name.toString()))
+                param->setValueNotifyingHost ((float) (double) kv.value);
+
+    const juce::String mp = v.getProperty ("modelPath", juce::var()).toString();
+    if (mp.isNotEmpty()) { const juce::File f (mp); if (f.existsAsFile()) processorRef.loadNamModel (f); }
+
+    const juce::String ip = v.getProperty ("irPath", juce::var()).toString();
+    if (ip.isNotEmpty()) { const juce::File f (ip); if (f.existsAsFile()) processorRef.loadIR (f); }
+
+    notifyChanged();
+    return v.getProperty ("name", juce::var()).toString();
 }
 
 //==============================================================================

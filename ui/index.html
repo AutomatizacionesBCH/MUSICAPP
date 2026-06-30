@@ -9,11 +9,14 @@
       <span class="logo"></span><b>Music App</b><span class="sub">&middot; nombre provisional</span>
     </div>
     <div class="preset">
-      <span class="ptag">PRESET</span><b id="preset-name">Default</b>
+      <span class="ptag">PRESET</span><input id="preset-name" class="pinput" value="Default" autocomplete="off">
     </div>
     <div class="topright">
       <button class="tbtn" id="btn-save">Guardar</button>
-      <button class="tbtn" id="btn-presets">Presets</button>
+      <div class="presetwrap">
+        <button class="tbtn" id="btn-presets">Presets</button>
+        <div class="presetpop" id="presets-pop" hidden></div>
+      </div>
       <span class="t3k">&#9679; TONE3000</span>
       <button class="tbtn icon" id="btn-cfg">&#9881;</button>
     </div>

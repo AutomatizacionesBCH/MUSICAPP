@@ -55,6 +55,39 @@ $("search").addEventListener("input", (e) => {
 });
 $("cab-change").addEventListener("click", () => loadIR());
 
+// ===== presets =====
+const savePreset = Juce.getNativeFunction("savePreset");
+const listPresets = Juce.getNativeFunction("listPresets");
+const loadPreset = Juce.getNativeFunction("loadPreset");
+const presetName = $("preset-name");
+const pop = $("presets-pop");
+
+$("btn-save").addEventListener("click", () => savePreset(presetName.value || "preset"));
+
+$("btn-presets").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  if (!pop.hidden) { pop.hidden = true; return; }
+  let items = [];
+  try { items = await listPresets(); } catch (e2) {}
+  pop.innerHTML = items.length ? "" : '<div class="ppempty">(sin presets guardados)</div>';
+  items.forEach((it) => {
+    const row = document.createElement("div");
+    row.className = "ppitem";
+    row.textContent = it.name;
+    row.addEventListener("click", async () => {
+      const r = await loadPreset(it.path);
+      if (r && r.name) presetName.value = r.name;
+      pop.hidden = true;
+      refreshState();
+    });
+    pop.appendChild(row);
+  });
+  pop.hidden = false;
+});
+document.addEventListener("click", (e) => {
+  if (!pop.hidden && !e.target.closest(".presetwrap")) pop.hidden = true;
+});
+
 // ===== knobs (WebSliderRelay) =====
 function bindKnob(knobId, valId, paramName, fmt) {
   const knob = $(knobId), valEl = $(valId);

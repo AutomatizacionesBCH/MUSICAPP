@@ -33,6 +33,10 @@ private:
     void chooseIR();           // función nativa loadIR
     void notifyChanged();      // emite "modelChanged" -> la UI refresca nombre+foto
 
+    juce::File   presetsDir() const;                     // ~/Documents/Music App/presets
+    void         writePreset (const juce::String& name); // guarda el rig actual a JSON
+    juce::String applyPreset (const juce::File& file);   // restaura un preset; devuelve su nombre
+
     MusicAppAudioProcessor& processorRef;
 
     // Relays (declarados ANTES que webView: las Options los referencian).
