@@ -96,6 +96,14 @@ void FxChain::loadFileInto (int uid, const juce::File& file)
             b->loadFile (file);
 }
 
+int FxChain::firstUidOfKind (const juce::String& kind) const
+{
+    for (auto& b : blocks)
+        if (b->kind() == kind)
+            return b->uid;
+    return 0;
+}
+
 void FxChain::clear()
 {
     std::vector<std::unique_ptr<FxBlock>> dead;

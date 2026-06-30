@@ -48,28 +48,28 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  .withOptionsFrom (outputRelay)
                  .withNativeFunction ("loadModel",
                      [this] (const juce::Array<juce::var>&, auto complete)
-                     { mModelLoadTarget = 0; openModelBrowser(); complete (juce::var()); })
+                     { openModelBrowser ("amp"); complete (juce::var()); })
                  .withNativeFunction ("loadPedal",
-                     [this] (const juce::Array<juce::var>& args, auto complete)
-                     {
-                         mModelLoadTarget = args.size() > 0 ? (int) args[0] : 0;   // uid del bloque Drive
-                         openModelBrowser();
-                         complete (juce::var());
-                     })
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     { openModelBrowser ("pedal"); complete (juce::var()); })
                  .withNativeFunction ("loadIR",
                      [this] (const juce::Array<juce::var>&, auto complete)
-                     { chooseIR(); complete (juce::var()); })
+                     { openModelBrowser ("ir"); complete (juce::var()); })
                  .withNativeFunction ("listModels",
                      [this] (const juce::Array<juce::var>& args, auto complete)
                      {
-                         const juce::String q = args.size() > 0 ? args[0].toString() : juce::String();
-                         const auto entries = mLibrary.filter (q);
+                         const juce::String tab = args.size() > 0 ? args[0].toString() : juce::String();
+                         const juce::String q   = args.size() > 1 ? args[1].toString() : juce::String();
+                         const auto entries = mLibrary.filter (tab, q);
                          juce::Array<juce::var> out;
-                         for (int i = 0; i < juce::jmin (entries.size(), 250); ++i)
+                         for (int i = 0; i < juce::jmin (entries.size(), 300); ++i)
                          {
                              juce::DynamicObject::Ptr e = new juce::DynamicObject();
-                             e->setProperty ("label", entries[i].relPath);
-                             e->setProperty ("path",  entries[i].file.getFullPathName());
+                             e->setProperty ("name",   entries[i].display);
+                             e->setProperty ("detail", entries[i].detail);
+                             e->setProperty ("gear",   entries[i].gear);
+                             e->setProperty ("ir",     entries[i].isIR);
+                             e->setProperty ("path",   entries[i].file.getFullPathName());
                              out.add (juce::var (e.get()));
                          }
                          complete (juce::var (out));
@@ -80,8 +80,24 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                          if (args.size() > 0)
                          {
                              const juce::File f (args[0].toString());
-                             if (processorRef.loadNamModel (f))
-                                 notifyChanged();
+                             if (f.hasFileExtension ("wav"))   // IR -> cab
+                             {
+                                 if (processorRef.loadIR (f)) notifyChanged();
+                             }
+                             else
+                             {
+                                 const juce::String rel  = f.getRelativePathFrom (mLibrary.getFolder()).replaceCharacter ('\\', '/');
+                                 const juce::String gear = rel.upToFirstOccurrenceOf ("/", false, false);
+                                 if (gear == "pedal")        // pedal -> bloque Drive
+                                 {
+                                     const int uid = processorRef.fx().firstUidOfKind ("drive");
+                                     if (uid != 0) { processorRef.fx().loadFileInto (uid, f); notifyChanged(); }
+                                 }
+                                 else                        // amp / amp-cab / ...
+                                 {
+                                     if (processorRef.loadNamModel (f)) notifyChanged();
+                                 }
+                             }
                          }
                          complete (juce::var());
                      })
@@ -297,23 +313,40 @@ juce::String WebUIEditor::applyPreset (const juce::File& file)
 }
 
 //==============================================================================
-void WebUIEditor::openModelBrowser()
+void WebUIEditor::openModelBrowser (const juce::String& defaultTab)
 {
-    if (mBrowserWindow != nullptr) { mBrowserWindow->toFront (true); return; }
+    if (mBrowserWindow != nullptr)
+    {
+        if (auto* b = dynamic_cast<ModelBrowser*> (mBrowserWindow->getContentComponent()))
+            b->setActiveTab (defaultTab);
+        mBrowserWindow->toFront (true);
+        return;
+    }
 
     auto* browser = new ModelBrowser (mLibrary);
-    browser->setSize (560, 460);
-    browser->onLoad = [this] (juce::File f)
+    browser->setSize (580, 520);
+    browser->setActiveTab (defaultTab);
+    // Rutea por TIPO de la entrada: IR -> cab; pedal -> bloque Drive; resto -> amp.
+    browser->onLoad = [this] (ModelLibrary::Entry e)
     {
-        if (mModelLoadTarget <= 0)                       // 0 = amp
+        if (e.isIR)
         {
-            if (processorRef.loadNamModel (f))
+            if (processorRef.loadIR (e.file))
                 notifyChanged();
         }
-        else                                             // pedal .nam a un bloque (Drive)
+        else if (e.gear == "pedal")
         {
-            processorRef.fx().loadFileInto (mModelLoadTarget, f);
-            notifyChanged();
+            const int uid = processorRef.fx().firstUidOfKind ("drive");
+            if (uid != 0)
+            {
+                processorRef.fx().loadFileInto (uid, e.file);
+                notifyChanged();
+            }
+        }
+        else                                             // amp / amp-cab / experimental / outboard
+        {
+            if (processorRef.loadNamModel (e.file))
+                notifyChanged();
         }
     };
     browser->onFolderChanged = [this] (juce::File dir)

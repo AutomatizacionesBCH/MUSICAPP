@@ -12,45 +12,45 @@ const listModels = Juce.getNativeFunction("listModels");
 const loadModelByPath = Juce.getNativeFunction("loadModelByPath");
 const loadIR = Juce.getNativeFunction("loadIR");
 
+let activeTab = "";   // "" = todos | "amp" | "amp-cab" | "pedal" | "ir"
+
 function renderList(items) {
   const listEl = $("model-list");
   listEl.innerHTML = "";
   items.forEach((it) => {
-    const parts = it.label.split("/");
-    const file = parts[parts.length - 1];
-    const toneFolder = parts[parts.length - 2] || "";
-    const slug = toneFolder.replace(/-\d+$/, "");               // quita el id final
-    const tc = (w) => (w ? w[0].toUpperCase() + w.slice(1) : w);
-    const name = slug ? slug.split("-").map(tc).join(" ") : file.replace(/\.nam$/, "");
-    const segs = file.split("__");                              // {name}__{size}__{arch}__{id}
-    const arch = (segs.length >= 4 ? segs[segs.length - 2] : "").toUpperCase();
-    const gear = parts[0] || "";
-    const sub = [gear, arch].filter(Boolean).join(" · ");
     const row = document.createElement("div");
     row.className = "mitem";
     row.innerHTML =
-      '<div class="mthumb">&#9835;</div><div class="minfo">' +
-      '<div class="mname">' + esc(name) + "</div>" +
-      '<div class="msub">' + esc(sub) + "</div></div>";
+      '<div class="mthumb">' + (it.ir ? "&#9636;" : "&#9835;") + '</div><div class="minfo">' +
+      '<div class="mname">' + esc(it.name || "") + "</div>" +
+      '<div class="msub">' + esc(it.detail || it.gear || "") + "</div></div>";
     row.addEventListener("click", async () => {
       document.querySelectorAll(".mitem.sel").forEach((e) => e.classList.remove("sel"));
       row.classList.add("sel");
       await loadModelByPath(it.path);
-      refreshState();
+      refreshChain();
     });
     listEl.appendChild(row);
   });
-  $("model-count").textContent = items.length + " modelos";
+  $("model-count").textContent = items.length + (items.length === 1 ? " modelo" : " modelos");
 }
 
-async function search(q) {
-  try { renderList(await listModels(q || "")); } catch (e) {}
+async function search() {
+  try { renderList(await listModels(activeTab, $("search").value || "")); } catch (e) {}
 }
 
 let searchTimer;
-$("search").addEventListener("input", (e) => {
+$("search").addEventListener("input", () => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => search(e.target.value), 150);
+  searchTimer = setTimeout(search, 150);
+});
+document.querySelectorAll(".chips .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".chips .chip.on").forEach((c) => c.classList.remove("on"));
+    chip.classList.add("on");
+    activeTab = chip.dataset.tab || "";
+    search();
+  });
 });
 // ===== presets =====
 const savePreset = Juce.getNativeFunction("savePreset");
@@ -299,6 +299,6 @@ window.__JUCE__.backend.addEventListener("meters", (m) => {
 });
 
 // ===== refrescos =====
-window.__JUCE__.backend.addEventListener("modelChanged", () => refreshState());
-refreshState();
-search("");
+window.__JUCE__.backend.addEventListener("modelChanged", () => refreshChain());
+refreshChain();
+search();

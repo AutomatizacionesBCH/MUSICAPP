@@ -237,7 +237,7 @@ void MusicAppAudioProcessorEditor::openModelBrowser()
 
     auto* browser = new ModelBrowser (mLibrary);
     browser->setSize (560, 460);
-    browser->onLoad = [this] (juce::File f) { loadModelFile (f); };
+    browser->onLoad = [this] (ModelLibrary::Entry e) { loadModelFile (e.file); };
     browser->onFolderChanged = [this] (juce::File dir)
     {
         if (mSettings != nullptr)

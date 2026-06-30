@@ -29,8 +29,8 @@ private:
     float detectPitch();              // autocorrelación sobre la entrada reciente
     std::vector<float> mPitchBuf;     // buffer de análisis del afinador
 
-    void openModelBrowser();   // función nativa loadModel
-    void chooseIR();           // función nativa loadIR
+    void openModelBrowser (const juce::String& defaultTab);   // popup con pestañas; rutea por tipo
+    void chooseIR();           // (FileChooser de IR — fallback)
     void notifyChanged();      // emite "modelChanged" -> la UI refresca nombre+foto
 
     juce::File   presetsDir() const;                     // ~/Documents/Music App/presets
@@ -52,7 +52,6 @@ private:
     std::unique_ptr<juce::PropertiesFile> mSettings;
     std::unique_ptr<juce::DocumentWindow> mBrowserWindow;
     std::unique_ptr<juce::FileChooser>    mChooser;
-    int mModelLoadTarget = 0;   // 0 = amp; >0 = uid del bloque (pedal .nam al Drive)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebUIEditor)
 };

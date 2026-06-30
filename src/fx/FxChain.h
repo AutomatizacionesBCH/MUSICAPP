@@ -26,6 +26,7 @@ public:
     void setBypass (int uid, bool bypassed);
     void setParam (int uid, const juce::String& paramId, float value);
     void loadFileInto (int uid, const juce::File& file);   // p.ej. pedal .nam al Drive
+    int  firstUidOfKind (const juce::String& kind) const;  // uid del 1er bloque "drive"/"cab"/... (0 si no hay)
     void clear();
 
     juce::var       describe() const;                       // JSON para la UI

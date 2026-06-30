@@ -145,6 +145,13 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   0=amp, uid=pedal). Verificado: carga el Marshall Bluesbreaker y procesa sin NaN. **Ojo:** una captura `.nam`
   NO tiene perillas del pedal (caja negra, ajuste fijo) — se elige entre capturas (packs); DRIVE/LEVEL del
   bloque son push-de-entrada + salida, no las perillas internas. **Pendiente:** persistir el pedal en presets.
+- **Navegador con pestañas + IRs ✅ (2026-06-30):** `ModelLibrary` ahora indexa `.nam` Y `.wav` (770 IRs que
+  antes no aparecían) con `gear` + nombre corto (`display`=equipo des-slugificado, `detail`=EQ/mic/arch).
+  `filter(tab, query)` filtra por pestaña: **AMP** (amp+experimental+outboard, 5.335) · **AMP-CAB** (297) ·
+  **PEDAL** (1.376) · **IR** (.wav, 770). El **popup `ModelBrowser`** tiene pestañas (TextButtons) + lista de
+  2 líneas (equipo + detalle); el **panel izquierdo** tiene chips funcionales (Todos/Amp/Amp-Cab/Pedal/IR).
+  **Ruteo por tipo** (no por botón): IR→cab, pedal→bloque Drive (`fx().firstUidOfKind("drive")`), resto→amp;
+  cada botón "Cargar X" sólo abre la pestaña por defecto. Nombres/detalle en **ASCII** (van al WebView por JSON).
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS
