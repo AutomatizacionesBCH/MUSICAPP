@@ -80,6 +80,11 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   todo (params vía `setValueNotifyingHost` → los relays mueven los knobs; recarga modelo/IR). Guardado
   verificado (escribe JSON correcto con params + rutas). Nota: el **input sintético no llega al WebView2**
   (limitación de automatización; los clicks reales del usuario sí) — verificar features de click en vivo.
+- **Bloque DRIVE ✅ (2026-06-29):** overdrive real pre-FX **antes del NAM**. Params `driveOn` (toggle),
+  `driveAmount`, `driveLevel`; en `processBlock` soft-clip `tanh(in * (1+amount*30)) * level` sobre la
+  entrada antes del NAM. UI: bloque **PRE·DRIVE** en la cadena (knobs DRIVE/LEVEL + toggle), cableado por
+  relays. Cadena actual: `IN → PRE·DRIVE → AMP·NAM → CAB·IR → POST·REVERB → OUT`. Binding verificado
+  (knobs arrancan en 30%/70% = defaults reales). **Siguiente:** grabador, metrónomo, gráficos por bloque.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar

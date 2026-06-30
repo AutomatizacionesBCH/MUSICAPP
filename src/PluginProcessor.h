@@ -102,6 +102,9 @@ private:
     std::atomic<float>* mOutputGainDb = nullptr;
     std::atomic<float>* mReverbMix    = nullptr;
     std::atomic<float>* mIrOn          = nullptr;   // bypass del Cabinet IR
+    std::atomic<float>* mDriveOn       = nullptr;   // bypass del drive (pre-FX)
+    std::atomic<float>* mDriveAmount   = nullptr;
+    std::atomic<float>* mDriveLevel    = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessor)
 };

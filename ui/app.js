@@ -116,15 +116,19 @@ const fmtPct = (v) => Math.round(v * 100) + "%";
 bindKnob("k-in", "v-in", "inputGain", fmtDb);
 bindKnob("k-out", "v-out", "outputGain", fmtDb);
 bindKnob("k-rev", "v-rev", "reverbMix", fmtPct);
+bindKnob("k-drv", "v-drv", "driveAmount", fmtPct);
+bindKnob("k-lvl", "v-lvl", "driveLevel", fmtPct);
 
-// ===== toggle IR =====
-(() => {
-  const t = $("ir-toggle"), st = Juce.getToggleState("irOn");
+// ===== toggles (WebToggleButtonRelay) =====
+function bindToggle(id, paramName) {
+  const t = $(id), st = Juce.getToggleState(paramName);
   const render = () => { const on = st.getValue(); t.classList.toggle("on", on); t.textContent = on ? "ON" : "OFF"; };
   st.valueChangedEvent.addListener(render);
   render();
   t.addEventListener("click", () => st.setValue(!st.getValue()));
-})();
+}
+bindToggle("ir-toggle", "irOn");
+bindToggle("drive-toggle", "driveOn");
 
 // ===== medidores + afinador (evento "meters") =====
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];

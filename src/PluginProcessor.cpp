@@ -89,6 +89,9 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
     mOutputGainDb = apvts.getRawParameterValue ("outputGain");
     mReverbMix    = apvts.getRawParameterValue ("reverbMix");
     mIrOn         = apvts.getRawParameterValue ("irOn");
+    mDriveOn      = apvts.getRawParameterValue ("driveOn");
+    mDriveAmount  = apvts.getRawParameterValue ("driveAmount");
+    mDriveLevel   = apvts.getRawParameterValue ("driveLevel");
 
     // Carga inicial del modelo por defecto (el audio aún no corre, así que es
     // seguro asignar mModel directamente; el Reset se hará en prepareToPlay).
@@ -137,6 +140,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout MusicAppAudioProcessor::crea
 
     layout.add (std::make_unique<juce::AudioParameterBool> (
         juce::ParameterID { "irOn", 1 }, "Cabinet IR", false));
+
+    // Drive (pre-FX, overdrive antes del NAM)
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "driveOn", 1 }, "Drive", false));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "driveAmount", 1 }, "Drive Amount",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.3f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "driveLevel", 1 }, "Drive Level",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.7f));
 
     return layout;
 }
@@ -229,6 +242,15 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     }
     mInWrite.store (ringW);
     mInPeak.store (inPeak);
+
+    // 1.5) Drive (pre-FX): overdrive por soft-clip (tanh) antes del NAM.
+    if (mDriveOn != nullptr && mDriveOn->load() > 0.5f)
+    {
+        const double driveGain = 1.0 + (double) mDriveAmount->load() * 30.0;   // 1..31
+        const double level     = (double) mDriveLevel->load();
+        for (int i = 0; i < n; ++i)
+            mInScratch[(size_t) i] = std::tanh (mInScratch[(size_t) i] * driveGain) * level;
+    }
 
     // 2) Amplificador NAM.
     if (mModel != nullptr)
