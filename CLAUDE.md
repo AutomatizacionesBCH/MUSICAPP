@@ -158,6 +158,17 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   escala todo). Ventana **1300×740** (entra el topright en pantallas comunes; el rack hace scroll-x).
   **Pendiente:** "llenar al maximizar / barra inferior anclada abajo" sigue siendo el gotcha de altura del
   WebView (ver gotchas) — pendiente con otra técnica.
+- **Settings en el detalle ✅ (2026-06-30):** los `.nam`/`.wav` de TONE3000 codifican las **perillas en el
+  filename** (`...-P5-B6-M8-T6-MV6_G7-...` = Presence/Bass/Mid/Treble/MasterVol/Gain; pedales `Drive/Tone/Level`,
+  `Gain 25percent`, estados `noon/fullgain/scooped`). `ModelLibrary::parseSettings(modelName)` extrae tokens
+  perilla (abreviatura-conocida + número-en-rango), **inclusivo** (sólo acepta lo que parece perilla → ignora
+  capturer/load/mic/ESR/año/n° de modelo por construcción) con guardas: 1 letra ⇒ 0..10, palabra ⇒ 0..100,
+  ≥3 dígitos descarta, `M` sólo con EQ, `V` suelto = versión, dedupe, máx 7 tokens; bloque pegado `T6B6D9V6`
+  se segmenta. Sin settings ⇒ fallback a mic/EQ con filtro de ruido (`isNoiseToken`). `detail` = settings/mic
+  `+  [A1|A2]`. Caracterización (workflow): ~50-70% de archivos traen settings parseables. **Bug corregido:**
+  `addTokens(base,"__")` partía por el char `_` (arch salía vacío) → ahora se parte por el STRING `"__"`.
+  El catálogo está en `Scrapper/downloads/{gear}/{make}/{tone}/`; metadata en `metadata.jsonl`
+  (`description` a veces trae settings, `makes`, `tags`, `downloads_count` para popularidad futura).
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS

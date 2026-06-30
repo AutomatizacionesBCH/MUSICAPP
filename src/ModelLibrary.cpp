@@ -34,26 +34,188 @@ namespace
         return rest.joinIntoString (" ");
     }
 
-    // Detalle corto: EQ/mic (parte del filename antes de "__") + arquitectura (a1/a2).
+    // Abreviatura de perilla (cualquier caso) -> etiqueta compacta canónica. "" si no es perilla.
+    juce::String canonKnob (const juce::String& letters)
+    {
+        const juce::String l = letters.toLowerCase();
+        if (l == "gain")                                      return "G";
+        if (l == "bass" || l == "low" || l == "lows")         return "B";
+        if (l == "mid"  || l == "mids" || l == "middle")      return "M";
+        if (l == "treble" || l == "treb" || l == "tone"
+            || l == "high" || l == "highs")                   return "T";
+        if (l == "presence" || l == "pres" || l == "pre")     return "P";
+        if (l == "volume" || l == "vol")                      return "V";
+        if (l == "master" || l == "mast" || l == "mv" || l == "ms") return "MV";
+        if (l == "drive"  || l == "drv")                      return "D";
+        if (l == "dist"   || l == "distortion")               return "Dist";
+        if (l == "level"  || l == "lvl" || l == "lev")        return "L";
+        if (l == "sustain"|| l == "sus")                      return "Sus";
+        if (l == "cut")                                       return "Cut";
+        if (l == "isf")                                       return "ISF";
+        if (l == "depth"  || l == "dep")                      return "Dep";
+        // una sola letra del set EQ conocido (g/b/m/t/p/v/d/l)
+        if (l.length() == 1 && juce::String ("gbmtpvdl").containsChar (l[0]))
+            return l.toUpperCase();
+        return {};
+    }
+
+    bool isPureNumber (const juce::String& t)
+    {
+        return t.isNotEmpty()
+            && juce::CharacterFunctions::isDigit (t[0])
+            && t.containsOnly ("0123456789.,");
+    }
+
+    // Valida/normaliza el valor de una perilla; "" si inválido.
+    // letras cortas (<=2) => rango 0..10; palabras largas => 0..100. Descarta >=3 dígitos enteros.
+    juce::String knobValue (const juce::String& numRaw, int srcLetterLen)
+    {
+        juce::String n = numRaw.replaceCharacter (',', '.');
+        if (n.isEmpty() || ! juce::CharacterFunctions::isDigit (n[0]))
+            return {};
+        int dots = 0;
+        for (int i = 0; i < n.length(); ++i)
+        {
+            const auto c = n[i];
+            if (c == '.') { if (++dots > 1) return {}; }
+            else if (! juce::CharacterFunctions::isDigit (c)) return {};
+        }
+        if (n.upToFirstOccurrenceOf (".", false, false).length() >= 3)
+            return {};
+        const double v = n.getDoubleValue();
+        const double maxv = (srcLetterLen <= 2) ? 10.0 : 100.0;
+        if (v < 0.0 || v > maxv) return {};
+        if (n.endsWith (".0")) n = n.dropLastCharacters (2);
+        return n;
+    }
+
+    // Extrae los settings (perillas) del {modelName}: "P5 B6 M8 T6 MV6 G7".
+    // Ignora ruido (capturer, load, mic, números de modelo/año) por construcción:
+    // sólo acepta tokens que parsean como abreviatura-conocida + número-en-rango.
+    juce::String parseSettings (const juce::String& modelName)
+    {
+        static const juce::String LETTERS ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        juce::String s = modelName.replaceCharacter ('-', ' ').replaceCharacter ('_', ' ');
+        s = s.replace ("percent", " ", true).replace ("%", " ", true);   // "Gain 25percent" -> "Gain 25"
+        juce::StringArray raw;
+        raw.addTokens (s, " ", "");
+        raw.removeEmptyStrings();
+
+        struct Cand { juce::String canon, value; int srcLen; };
+        juce::Array<Cand> cands;
+
+        for (int i = 0; i < raw.size(); ++i)
+        {
+            const juce::String tk = raw[i];
+
+            // Caso B: abreviatura sola + número aparte ("Vol 7", "Gain 75", "Drive 5")
+            if (tk.containsOnly (LETTERS))
+            {
+                const juce::String canon = canonKnob (tk);
+                if (canon.isNotEmpty() && i + 1 < raw.size() && isPureNumber (raw[i + 1]))
+                {
+                    const juce::String v = knobValue (raw[i + 1], tk.length());
+                    if (v.isNotEmpty()) { cands.add ({ canon, v, tk.length() }); ++i; }
+                }
+                continue;
+            }
+
+            // Caso A: token = (letras)(número), una o varias veces ("P5", "MV6", "T6B6D9V6")
+            juce::Array<Cand> local;
+            int pos = 0; bool ok = true;
+            while (pos < tk.length())
+            {
+                int j = pos;
+                while (j < tk.length() && juce::CharacterFunctions::isLetter (tk[j])) ++j;
+                int k = j;
+                while (k < tk.length()
+                       && (juce::CharacterFunctions::isDigit (tk[k]) || tk[k] == '.' || tk[k] == ','))
+                    ++k;
+                const juce::String letters = tk.substring (pos, j);
+                const juce::String num     = tk.substring (j, k);
+                if (letters.isEmpty() || num.isEmpty()) { ok = false; break; }
+                const juce::String canon = canonKnob (letters);
+                const juce::String v     = knobValue (num, letters.length());
+                if (canon.isEmpty() || v.isEmpty()) { ok = false; break; }
+                local.add ({ canon, v, letters.length() });
+                pos = k;
+            }
+            if (ok && pos == tk.length())
+                cands.addArray (local);
+        }
+
+        bool hasEQ = false;
+        for (const auto& c : cands)
+            if (c.canon == "B" || c.canon == "T" || c.canon == "P" || c.canon == "G")
+                { hasEQ = true; break; }
+
+        juce::StringArray out;
+        for (const auto& c : cands)
+        {
+            if (c.canon == "M" && ! hasEQ)                       continue;  // Mid sólo con EQ
+            if (c.canon == "V" && c.srcLen == 1 && cands.size() < 2) continue;  // V suelto = versión
+            const juce::String t = c.canon + c.value;
+            if (out.size() > 0 && out[out.size() - 1] == t)      continue;  // dedupe
+            out.add (t);
+            if (out.size() >= 7) break;                                     // compacto
+        }
+        return out.joinIntoString (" ");
+    }
+
+    // Tokens de ruido (capturer, load, ESR, preset...) que no aportan al detalle.
+    bool isNoiseToken (const juce::String& t)
+    {
+        const juce::String l = t.toLowerCase();
+        if (l.startsWith ("esr") || l.contains ("epoch"))
+            return true;
+        static const char* noise[] = {
+            "vossen", "suhrrl", "suhr", "di", "pny", "peterny", "reedd", "tc", "nam",
+            "wav", "diy", "clone", "capture", "preset", "standard", "standart",
+            "feather", "lite", "nano", "nocab", "preamp", "poweramp", "load", "tone3000" };
+        for (auto* n : noise)
+            if (l == n) return true;
+        return false;
+    }
+
+    // Detalle corto: settings (gain/bass/mid/treble...) o mic/EQ + arquitectura (a1/a2).
     juce::String fileDetail (const juce::String& fileName, const juce::String& equipment)
     {
+        // {modelName}__{size}__{arch}__{id}  (separador es el STRING "__", no el char '_')
         const juce::String base = fileName.upToLastOccurrenceOf (".", false, false);
-        juce::StringArray fields;
-        fields.addTokens (base, "__", "");   // {modelName}__{size}__{arch}__{id}
-        const juce::String modelName = fields.size() > 0 ? fields[0] : base;
-        const juce::String arch      = fields.size() >= 2 ? fields[fields.size() - 2] : juce::String();
+        juce::String modelName = base, arch;
+        if (base.contains ("__"))
+        {
+            modelName = base.upToFirstOccurrenceOf ("__", false, false);
+            arch      = base.upToLastOccurrenceOf ("__", false, false)
+                            .fromLastOccurrenceOf ("__", false, false);
+        }
 
-        juce::String mn = modelName.replaceCharacter ('-', ' ').trim();
-        mn = stripWordPrefix (mn, equipment);
-        while (mn.startsWithChar (',') || mn.startsWithChar (' '))
-            mn = mn.substring (1).trim();
-        if (mn.length() > 40)
-            mn = mn.substring (0, 38).trim() + "...";
+        juce::String body = parseSettings (modelName);   // perillas
 
-        juce::String detail = mn;   // ASCII (se muestra en el WebView via JSON)
+        if (body.isEmpty())   // fallback: descripción mic/EQ (como antes)
+        {
+            juce::String mn = modelName.replaceCharacter ('-', ' ').replaceCharacter ('_', ' ').trim();
+            if (mn.startsWithChar ('#'))
+                mn = mn.fromFirstOccurrenceOf (" ", false, false).trim();
+            mn = stripWordPrefix (mn, equipment);
+            // quita tokens de ruido (capturer, load, ESR, preset...)
+            juce::StringArray ft, keep;
+            ft.addTokens (mn, " ", "");
+            ft.removeEmptyStrings();
+            for (const auto& t : ft)
+                if (! isNoiseToken (t)) keep.add (t);
+            mn = keep.joinIntoString (" ");
+            while (mn.startsWithChar (',') || mn.startsWithChar (' '))
+                mn = mn.substring (1).trim();
+            if (mn.length() > 40)
+                mn = mn.substring (0, 38).trim() + "...";
+            body = mn;
+        }
+
         if (arch.isNotEmpty() && ! arch.equalsIgnoreCase ("None") && ! arch.equalsIgnoreCase ("ir"))
-            detail = detail.isEmpty() ? arch.toUpperCase() : detail + " - " + arch.toUpperCase();
-        return detail;
+            body = body.isEmpty() ? ("[" + arch.toUpperCase() + "]")
+                                  : body + "  [" + arch.toUpperCase() + "]";
+        return body;
     }
 
     // ¿La entrada pertenece a la pestaña? (experimental/outboard van a AMP).
