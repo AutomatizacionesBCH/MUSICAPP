@@ -80,12 +80,59 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
     mLibrary.setFolder (libFolder);
 
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
-    setSize (900, 320);
+    setSize (900, 520);
+
+    mPitchBuf.assign (2048, 0.0f);
+    startTimerHz (24);   // medidores + afinador
+}
+
+WebUIEditor::~WebUIEditor()
+{
+    stopTimer();
 }
 
 void WebUIEditor::resized()
 {
     webView.setBounds (getLocalBounds());
+}
+
+//==============================================================================
+void WebUIEditor::timerCallback()
+{
+    juce::DynamicObject::Ptr o = new juce::DynamicObject();
+    o->setProperty ("in",  processorRef.getInPeak());
+    o->setProperty ("out", processorRef.getOutPeak());
+    o->setProperty ("hz",  detectPitch());
+    webView.emitEventIfBrowserIsVisible ("meters", juce::var (o.get()));
+}
+
+float WebUIEditor::detectPitch()
+{
+    const int N = (int) mPitchBuf.size();
+    processorRef.getRecentInput (mPitchBuf.data(), N);
+
+    double energy = 0.0;
+    for (int i = 0; i < N; ++i) energy += (double) mPitchBuf[i] * mPitchBuf[i];
+    if (std::sqrt (energy / N) < 0.004)   // gate de silencio/ruido
+        return 0.0f;
+
+    const double sr = processorRef.getSampleRate();
+    const int minLag = juce::jmax (2, (int) (sr / 400.0));     // hasta ~400 Hz
+    const int maxLag = juce::jmin ((int) (sr / 70.0), N / 2);  // hasta ~70 Hz
+
+    double bestCorr = 0.0; int bestLag = 0;
+    for (int lag = minLag; lag <= maxLag; ++lag)
+    {
+        double corr = 0.0;
+        for (int i = 0; i < N - lag; ++i)
+            corr += (double) mPitchBuf[i] * mPitchBuf[i + lag];
+        if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+    }
+
+    if (bestLag == 0 || bestCorr < 0.5 * energy)   // claridad insuficiente
+        return 0.0f;
+
+    return (float) (sr / (double) bestLag);
 }
 
 void WebUIEditor::notifyChanged()

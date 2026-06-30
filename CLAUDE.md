@@ -59,7 +59,23 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   emite `modelChanged` y la UI refresca nombre+foto). Assets (HTML/CSS/JS + la librería JS de JUCE)
   embebidos con `juce_add_binary_data`. Binding verificado: la UI arranca con los valores reales de los
   params (knob IN a 0 dB/50%, IR OFF). **`createEditor()` ahora devuelve `WebUIEditor`** (la UI nativa
-  `PluginEditor` queda como referencia). **Siguiente:** buscador de tonos in-WebView, drive, presets.
+  `PluginEditor` queda como referencia).
+- **UI WebView — barra inferior: medidores + afinador ✅ (2026-06-29):** barra inferior estilo
+  AmpliTube con **medidores IN/OUT** (verde→ámbar→rojo) y un **afinador** (nota + cents + aguja). El
+  motor guarda la entrada en un ring buffer (`getRecentInput`); el `WebUIEditor` (un `juce::Timer` a
+  24 Hz) hace **detección de pitch por autocorrelación** y empuja `{in,out,hz}` por el evento `meters`.
+  **Siguiente:** grabador, metrónomo, buscador de presets, drive (camino a la completitud tipo AmpliTube).
+
+### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
+- **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar
+  `ui/*.html|css|js` hay que **reconfigurar** (`cmake -S . -B build/app …`) o el HTML/CSS/JS embebido
+  queda viejo. `build.ps1` siempre reconfigura, así que por ahí no falla. Para iterar rápido: borrar
+  `build/app/**/BinaryData*.cpp` + reconfigurar fuerza la regeneración.
+- **El viewport del WebView no tiene altura definida** → `height:100%`, `100vh` y `position:fixed`
+  (bottom) NO posicionan bien (la barra se empuja fuera de la vista). **Usar flujo normal del documento**
+  (la barra fluye tras la cadena); evitar layouts dependientes de la altura del viewport.
+- WebView2 **cachea** los recursos del provider (carpeta de user data en `%TEMP%/MusicAppWebView2`).
+  Al cambiar assets, borrar esa carpeta para forzar recarga limpia al probar.
 
 ### Receta de integración de NAM Core (verificada al compilar)
 - Fuentes a compilar: `libs/NeuralAmpModelerCore/NAM/*.cpp` + `NAM/*/*.cpp` (incluye `wavenet/`).

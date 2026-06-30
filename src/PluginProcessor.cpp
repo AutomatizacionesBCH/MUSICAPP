@@ -216,6 +216,7 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     //    2/R) + medición de pico de entrada. Copiamos ANTES de escribir salidas.
     const int numIn = juce::jmin (getTotalNumInputChannels(), numCh);
     float inPeak = 0.0f;
+    int ringW = mInWrite.load();
     for (int i = 0; i < n; ++i)
     {
         double s = 0.0;
@@ -223,7 +224,10 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             s += (double) buffer.getReadPointer (ch)[i];
         inPeak = juce::jmax (inPeak, std::abs ((float) s));
         mInScratch[(size_t) i] = s * inGain;
+        mInRing[(size_t) (ringW % kInRingSize)] = (float) s;   // entrada cruda para el afinador
+        ++ringW;
     }
+    mInWrite.store (ringW);
     mInPeak.store (inPeak);
 
     // 2) Amplificador NAM.
@@ -349,6 +353,16 @@ void MusicAppAudioProcessor::setStateInformation (const void* data, int sizeInBy
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
         apvts.replaceState (juce::ValueTree::fromXml (*xml));
+}
+
+void MusicAppAudioProcessor::getRecentInput (float* dest, int numSamples) const
+{
+    const int w = mInWrite.load();
+    for (int i = 0; i < numSamples; ++i)
+    {
+        int idx = ((w - numSamples + i) % kInRingSize + kInRingSize) % kInRingSize;
+        dest[i] = mInRing[(size_t) idx];
+    }
 }
 
 juce::AudioProcessorEditor* MusicAppAudioProcessor::createEditor()

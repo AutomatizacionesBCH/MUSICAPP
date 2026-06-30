@@ -9,11 +9,12 @@
 // Etapa 1: cadena + fotos. Etapa 2: controles cableados por relays (APVTS) +
 // funciones nativas para cargar modelo/IR (reusa el ModelBrowser popup).
 //==============================================================================
-class WebUIEditor : public juce::AudioProcessorEditor
+class WebUIEditor : public juce::AudioProcessorEditor,
+                    private juce::Timer
 {
 public:
     explicit WebUIEditor (MusicAppAudioProcessor&);
-    ~WebUIEditor() override = default;
+    ~WebUIEditor() override;
 
     void resized() override;
 
@@ -23,6 +24,10 @@ private:
     std::optional<Resource> provide (const juce::String& url);
     juce::File   imageFor (const juce::File& mediaFile) const;  // <dir>/images/image_*
     juce::String stateJson() const;
+
+    void  timerCallback() override;   // empuja {in,out,hz} a la UI ~24 Hz
+    float detectPitch();              // autocorrelación sobre la entrada reciente
+    std::vector<float> mPitchBuf;     // buffer de análisis del afinador
 
     void openModelBrowser();   // función nativa loadModel
     void chooseIR();           // función nativa loadIR

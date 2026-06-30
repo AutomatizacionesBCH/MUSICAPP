@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <array>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -57,6 +58,10 @@ public:
     float getInPeak()  const { return mInPeak.load(); }
     float getOutPeak() const { return mOutPeak.load(); }
 
+    // Copia las últimas numSamples muestras de la entrada (mono, pre-NAM) en dest
+    // para el afinador. Lectura best-effort fuera del audio thread.
+    void getRecentInput (float* dest, int numSamples) const;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void prepareModel (nam::DSP& model) const;
@@ -87,6 +92,11 @@ private:
 
     std::atomic<float> mInPeak  { 0.0f };
     std::atomic<float> mOutPeak { 0.0f };
+
+    // Ring buffer de la entrada mono (para el afinador; lo lee la UI).
+    static constexpr int kInRingSize = 8192;
+    std::array<float, kInRingSize> mInRing {};
+    std::atomic<int> mInWrite { 0 };
 
     std::atomic<float>* mInputGainDb  = nullptr;
     std::atomic<float>* mOutputGainDb = nullptr;
