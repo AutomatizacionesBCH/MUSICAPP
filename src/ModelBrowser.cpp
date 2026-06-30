@@ -69,22 +69,82 @@ void ModelBrowser::setActiveTab (const juce::String& tab)
 
 void ModelBrowser::refresh()
 {
-    mFiltered = mLibrary.filter (mActiveTab, searchBox.getText());
-    listBox.updateContent();
+    const auto entries = mLibrary.filter (mActiveTab, searchBox.getText());
+
+    // Agrupa por tono (Entry.group): 1 equipo = 1 grupo con todas sus capturas.
+    mGroups.clear();
+    juce::HashMap<juce::String, int> idx;
+    for (const auto& e : entries)
+    {
+        int gi;
+        if (idx.contains (e.group)) { gi = idx[e.group]; }
+        else
+        {
+            gi = (int) mGroups.size();
+            idx.set (e.group, gi);
+            Group g; g.display = e.display; g.gear = e.gear; g.arch = e.arch;
+            mGroups.push_back (std::move (g));
+        }
+        mGroups[(size_t) gi].caps.add (e);
+    }
+    // Captura por defecto (neutral): prefiere noon/flat, si no la de detalle más corto (base).
+    for (auto& g : mGroups)
+    {
+        int best = -1;
+        for (int i = 0; i < g.caps.size(); ++i)
+        {
+            const juce::String d = g.caps[i].detail;
+            const int s = (d.containsIgnoreCase ("noon") || d.containsIgnoreCase ("flat"))
+                              ? 1000 : (200 - juce::jmin (200, d.length()));
+            if (s > best) { best = s; g.def = i; }
+        }
+    }
+
+    rebuildRows();
     listBox.deselectAllRows();
-    countLabel.setText (juce::String (mFiltered.size()) + " de "
-                          + juce::String (mLibrary.countForTab (mActiveTab)),
-                        juce::dontSendNotification);
+    countLabel.setText (juce::String ((int) mGroups.size()) + " equipos", juce::dontSendNotification);
     repaint();
 }
 
-int ModelBrowser::getNumRows() { return mFiltered.size(); }
+void ModelBrowser::rebuildRows()
+{
+    mRows.clearQuick();
+    for (int gi = 0; gi < (int) mGroups.size(); ++gi)
+    {
+        mRows.add ({ gi, -1 });
+        if (mGroups[(size_t) gi].expanded)
+            for (int ci = 0; ci < mGroups[(size_t) gi].caps.size(); ++ci)
+                mRows.add ({ gi, ci });
+    }
+    listBox.updateContent();
+}
+
+int ModelBrowser::getNumRows() { return mRows.size(); }
+
+void ModelBrowser::paintArchBadge (juce::Graphics& g, const juce::String& arch, int w, int h, int& textRight)
+{
+    if (arch.isEmpty()) return;
+    const juce::String label = arch.toUpperCase();
+    const int bw = (label.length() <= 2) ? 28 : 54;
+    const int bh = 16, bx = w - bw - 10, by = (h - bh) / 2;
+    juce::Colour bg, fg;
+    if (arch == "a2")          { bg = cAccent;                                    fg = juce::Colour (0xff1a0e06); }
+    else if (arch == "custom") { bg = juce::Colour (0xff8a5ad2).withAlpha (0.22f); fg = juce::Colour (0xffd8b4fe); }
+    else                       { bg = juce::Colour (0xff5684c9).withAlpha (0.20f); fg = juce::Colour (0xff9fc7ff); }
+    g.setColour (bg);
+    g.fillRoundedRectangle ((float) bx, (float) by, (float) bw, (float) bh, 4.0f);
+    g.setColour (fg);
+    g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
+    g.drawText (label, bx, by, bw, bh, juce::Justification::centred, false);
+    textRight = bx - 8;
+}
 
 void ModelBrowser::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
-    if (row < 0 || row >= mFiltered.size())
+    if (row < 0 || row >= mRows.size())
         return;
-    const auto& e = mFiltered[row];
+    const auto vr = mRows[row];
+    const auto& grp = mGroups[(size_t) vr.group];
 
     if (selected)
     {
@@ -93,36 +153,56 @@ void ModelBrowser::paintListBoxItem (int row, juce::Graphics& g, int w, int h, b
         g.setColour (cAccent);
         g.fillRect (0, 0, 3, h);
     }
-    // Badge de arquitectura (A1 / A2 / CUSTOM) a la derecha; reserva su espacio.
+
     int textRight = w - 16;
-    if (e.arch.isNotEmpty())
+
+    if (vr.cap < 0)
     {
-        const juce::String label = e.arch.toUpperCase();
-        const int bw = (label.length() <= 2) ? 28 : 54;
-        const int bh = 16;
-        const int bx = w - bw - 10;
-        const int by = (h - bh) / 2;
+        // ---- cabecera del equipo: chevron + nombre + (gear · N capturas) + badge ----
+        paintArchBadge (g, grp.arch, w, h, textRight);
 
-        juce::Colour bg, fg;
-        if (e.arch == "a2")          { bg = cAccent;                                    fg = juce::Colour (0xff1a0e06); }
-        else if (e.arch == "custom") { bg = juce::Colour (0xff8a5ad2).withAlpha (0.22f); fg = juce::Colour (0xffd8b4fe); }
-        else                         { bg = juce::Colour (0xff5684c9).withAlpha (0.20f); fg = juce::Colour (0xff9fc7ff); }
+        const float cx = 16.0f, cy = h * 0.5f;
+        juce::Path tri;
+        if (grp.expanded) { tri.addTriangle (cx - 4, cy - 3, cx + 4, cy - 3, cx, cy + 4); }
+        else              { tri.addTriangle (cx - 3, cy - 4, cx - 3, cy + 4, cx + 4, cy); }
+        g.setColour (grp.expanded ? cAccent : cText3);
+        g.fillPath (tri);
 
-        g.setColour (bg);
-        g.fillRoundedRectangle ((float) bx, (float) by, (float) bw, (float) bh, 4.0f);
-        g.setColour (fg);
-        g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
-        g.drawText (label, bx, by, bw, bh, juce::Justification::centred, false);
-        textRight = bx - 8;
+        const int tx = 30;
+        g.setColour (cText);
+        g.setFont (juce::Font (juce::FontOptions (13.5f, juce::Font::bold)));
+        g.drawText (grp.display, tx, 4, textRight - tx, 19, juce::Justification::centredLeft, true);
+
+        juce::String sub = grp.gear;
+        if (grp.caps.size() > 1) sub << " - " << grp.caps.size() << " capturas";
+        g.setColour (cText3);
+        g.setFont (juce::Font (juce::FontOptions (11.0f)));
+        g.drawText (sub, tx, 22, textRight - tx, 15, juce::Justification::centredLeft, true);
     }
+    else
+    {
+        // ---- captura (indentada): settings/EQ + badge ----
+        const auto& e = grp.caps[vr.cap];
+        paintArchBadge (g, e.arch, w, h, textRight);
+        const int tx = 38;
+        g.setColour (cText2);
+        g.setFont (juce::Font (juce::FontOptions (12.0f)));
+        g.drawText (e.detail.isEmpty() ? juce::String ("(base)") : e.detail,
+                    tx, 0, textRight - tx, h, juce::Justification::centredLeft, true);
+    }
+}
 
-    g.setColour (cText);
-    g.setFont (juce::Font (juce::FontOptions (13.5f, juce::Font::bold)));
-    g.drawText (e.display, 12, 4, textRight - 12, 19, juce::Justification::centredLeft, true);
-
-    g.setColour (cText3);
-    g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText (e.detail, 12, 22, textRight - 12, 15, juce::Justification::centredLeft, true);
+void ModelBrowser::listBoxItemClicked (int row, const juce::MouseEvent&)
+{
+    if (row < 0 || row >= mRows.size())
+        return;
+    const auto vr = mRows[row];
+    if (vr.cap < 0)   // click en cabecera -> expandir/colapsar
+    {
+        mGroups[(size_t) vr.group].expanded = ! mGroups[(size_t) vr.group].expanded;
+        rebuildRows();
+        listBox.selectRow (row);
+    }
 }
 
 void ModelBrowser::listBoxItemDoubleClicked (int row, const juce::MouseEvent&)
@@ -134,8 +214,13 @@ void ModelBrowser::listBoxItemDoubleClicked (int row, const juce::MouseEvent&)
 void ModelBrowser::loadSelected()
 {
     const int sel = listBox.getSelectedRow();
-    if (sel >= 0 && sel < mFiltered.size() && onLoad != nullptr)
-        onLoad (mFiltered[sel]);
+    if (sel < 0 || sel >= mRows.size() || onLoad == nullptr)
+        return;
+    const auto vr = mRows[sel];
+    const auto& grp = mGroups[(size_t) vr.group];
+    if (grp.caps.isEmpty())
+        return;
+    onLoad ((vr.cap < 0) ? grp.caps[grp.def] : grp.caps[vr.cap]);
 }
 
 void ModelBrowser::chooseFolder()

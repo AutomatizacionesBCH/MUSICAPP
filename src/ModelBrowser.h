@@ -25,18 +25,33 @@ public:
     void paint (juce::Graphics&) override;
 
 private:
+    // Un equipo (tono) con todas sus capturas; el navegador muestra 1 fila por grupo
+    // y, si está expandido, sus capturas debajo.
+    struct Group
+    {
+        juce::String display, gear, arch;
+        juce::Array<ModelLibrary::Entry> caps;
+        int  def = 0;          // índice de la captura por defecto (neutral)
+        bool expanded = false;
+    };
+    struct VisRow { int group = 0; int cap = -1; };   // cap == -1 -> cabecera del grupo
+
     // ListBoxModel
     int  getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int w, int h, bool selected) override;
+    void listBoxItemClicked (int row, const juce::MouseEvent&) override;
     void listBoxItemDoubleClicked (int row, const juce::MouseEvent&) override;
 
+    void rebuildRows();
+    void paintArchBadge (juce::Graphics&, const juce::String& arch, int w, int h, int& textRight);
     void loadSelected();
     void chooseFolder();
     void styleTabs();
 
-    ModelLibrary&                    mLibrary;
-    juce::Array<ModelLibrary::Entry> mFiltered;
-    juce::String                     mActiveTab { "amp" };
+    ModelLibrary&          mLibrary;
+    std::vector<Group>     mGroups;
+    juce::Array<VisRow>    mRows;
+    juce::String           mActiveTab { "amp" };
 
     juce::OwnedArray<juce::TextButton> mTabs;
     juce::StringArray mTabKeys { "amp", "amp-cab", "pedal", "ir" };
