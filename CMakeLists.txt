@@ -16,6 +16,21 @@ if (WIN32 AND EXISTS "${WEBVIEW2_DIR}/include/WebView2.h")
 endif()
 
 # --------------------------------------------------------------------------
+# ASIO SDK (Windows): audio de baja latencia (acceso directo al hardware, sin
+# pasar por el mezclador de Windows). SDK de Steinberg en .asiosdk/ (NO
+# redistribuible; se descarga aparte). Si está, se habilita JUCE_ASIO=1 más
+# abajo en el target. Driver ASIO lo provee la interfaz (p.ej. MiniFuse ASIO).
+# --------------------------------------------------------------------------
+set(ASIOSDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.asiosdk")
+set(MUSICAPP_HAS_ASIO FALSE)
+if (WIN32 AND EXISTS "${ASIOSDK_DIR}/common/asio.h")
+  set(MUSICAPP_HAS_ASIO TRUE)
+  message(STATUS "ASIO SDK encontrado -> audio de baja latencia HABILITADO")
+else()
+  message(STATUS "ASIO SDK no encontrado en .asiosdk/ -> solo WASAPI/DirectSound")
+endif()
+
+# --------------------------------------------------------------------------
 # JUCE (descargado automáticamente; primera vez tarda)
 # --------------------------------------------------------------------------
 include(FetchContent)
@@ -122,6 +137,16 @@ target_compile_definitions(MusicApp PRIVATE
   JUCE_USE_CURL=0
   DONT_SET_USING_JUCE_NAMESPACE=1
 )
+
+# ASIO: habilita el backend de baja latencia en juce_audio_devices (que viene
+# vía juce_audio_utils). Necesita los headers del SDK en el include path.
+if (MUSICAPP_HAS_ASIO)
+  target_compile_definitions(MusicApp PRIVATE JUCE_ASIO=1)
+  target_include_directories(MusicApp PRIVATE
+    "${ASIOSDK_DIR}/common"
+    "${ASIOSDK_DIR}/host"
+    "${ASIOSDK_DIR}/host/pc")
+endif()
 
 target_link_libraries(MusicApp
   PRIVATE

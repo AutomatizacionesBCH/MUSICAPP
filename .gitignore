@@ -46,3 +46,5 @@ Dunlop Eric Johnson Fuzz Face/
 
 # ---- Notas ----
 # libs/NeuralAmpModelerCore es un submódulo git (ver .gitmodules).
+
+.asiosdk/
