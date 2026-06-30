@@ -268,6 +268,7 @@ void ModelLibrary::rescan()
             e.display = f.getFileNameWithoutExtension();
         e.detail = fileDetail (f.getFileName(), e.display);
         e.arch   = e.isIR ? juce::String() : archOf (f.getFileName());
+        e.group  = e.relPath.upToLastOccurrenceOf ("/", false, false);  // carpeta del tono
         mEntries.add (e);
     }
 

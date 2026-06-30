@@ -172,6 +172,18 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   `addTokens(base,"__")` partía por el char `_` (arch salía vacío) → ahora se parte por el STRING `"__"`.
   El catálogo está en `Scrapper/downloads/{gear}/{make}/{tone}/`; metadata en `metadata.jsonl`
   (`description` a veces trae settings, `makes`, `tags`, `downloads_count` para popularidad futura).
+- **Navegador agrupado por equipo ✅ (2026-06-30):** un amp con 162 capturas era 162 filas → ahora **1 fila
+  por equipo** + submenú. `Entry.group` = carpeta del tono (`gear/make/tono`). `listModels` agrupa por `group`
+  y devuelve `{name, gear, arch, count, defaultPath, captures:[{detail,arch,path}]}`. **defaultPath** = captura
+  más neutral (prefiere settings con `noon`/`flat`, si no la de detalle más corto = base). En `app.js`
+  `renderList` dibuja grupos: click en el equipo → carga el default + despliega `.gsub` con todas las capturas
+  (cada una con sus settings + badge); click en una captura → la carga. CSS `.mgroup/.gchev/.gsub/.citem`.
+  (El popup nativo `ModelBrowser` sigue plano por ahora; el panel izquierdo es el navegador principal.)
+- **Top Rigs (2026-06-30):** carpeta `Proyectos IA/Top Rigs/{amp,amp-cab,pedal}/{make}/{tono}/` con SOLO los
+  modelos **A2** del top-30 más descargado de cada categoría (ranking sacado de tone3000 con Playwright →
+  RPC Supabase `search_tones_a2`, `order_by:"downloads-all-time"`). Bajado con Playwright `request` + Bearer
+  Secret Key (`Scrapper/.env`), rate-limit ~70/min + retry 403/429. La app apunta ahí vía `modelLibraryFolder`
+  en `%APPDATA%\Music App\Music App.settings`.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS

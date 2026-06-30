@@ -61,17 +61,56 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                          const juce::String tab = args.size() > 0 ? args[0].toString() : juce::String();
                          const juce::String q   = args.size() > 1 ? args[1].toString() : juce::String();
                          const auto entries = mLibrary.filter (tab, q);
-                         juce::Array<juce::var> out;
-                         for (int i = 0; i < juce::jmin (entries.size(), 300); ++i)
+
+                         // Agrupa por tono (Entry.group): 1 equipo = 1 grupo con todas sus capturas.
+                         struct Grp { juce::String name, gear, arch; bool ir = false; juce::Array<juce::var> caps; };
+                         std::vector<Grp> groups;
+                         juce::HashMap<juce::String, int> idx;
+                         for (const auto& e : entries)
                          {
-                             juce::DynamicObject::Ptr e = new juce::DynamicObject();
-                             e->setProperty ("name",   entries[i].display);
-                             e->setProperty ("detail", entries[i].detail);
-                             e->setProperty ("gear",   entries[i].gear);
-                             e->setProperty ("arch",   entries[i].arch);
-                             e->setProperty ("ir",     entries[i].isIR);
-                             e->setProperty ("path",   entries[i].file.getFullPathName());
-                             out.add (juce::var (e.get()));
+                             int gi;
+                             if (idx.contains (e.group)) { gi = idx[e.group]; }
+                             else
+                             {
+                                 if ((int) groups.size() >= 400) continue;     // tope de equipos
+                                 gi = (int) groups.size();
+                                 idx.set (e.group, gi);
+                                 Grp g; g.name = e.display; g.gear = e.gear; g.arch = e.arch; g.ir = e.isIR;
+                                 groups.push_back (std::move (g));
+                             }
+                             auto& g = groups[(size_t) gi];
+                             if (g.caps.size() < 400)
+                             {
+                                 juce::DynamicObject::Ptr c = new juce::DynamicObject();
+                                 c->setProperty ("detail", e.detail);
+                                 c->setProperty ("arch",   e.arch);
+                                 c->setProperty ("path",   e.file.getFullPathName());
+                                 g.caps.add (juce::var (c.get()));
+                             }
+                         }
+
+                         juce::Array<juce::var> out;
+                         for (auto& g : groups)
+                         {
+                             // default = captura mas "neutral": prefiere noon/flat, si no la de detalle mas corto (base).
+                             juce::String def; int best = -1;
+                             for (const auto& cv : g.caps)
+                             {
+                                 auto* o = cv.getDynamicObject();
+                                 const juce::String d = o->getProperty ("detail").toString();
+                                 int score = (d.containsIgnoreCase ("noon") || d.containsIgnoreCase ("flat"))
+                                                 ? 1000 : (200 - juce::jmin (200, d.length()));
+                                 if (score > best) { best = score; def = o->getProperty ("path").toString(); }
+                             }
+                             juce::DynamicObject::Ptr go = new juce::DynamicObject();
+                             go->setProperty ("name",    g.name);
+                             go->setProperty ("gear",    g.gear);
+                             go->setProperty ("arch",    g.arch);
+                             go->setProperty ("ir",      g.ir);
+                             go->setProperty ("count",   g.caps.size());
+                             go->setProperty ("defaultPath", def);
+                             go->setProperty ("captures", g.caps);
+                             out.add (juce::var (go.get()));
                          }
                          complete (juce::var (out));
                      })

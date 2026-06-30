@@ -14,30 +14,60 @@ const loadIR = Juce.getNativeFunction("loadIR");
 
 let activeTab = "";   // "" = todos | "amp" | "amp-cab" | "pedal" | "ir"
 
-function renderList(items) {
+function archBadge(a) {
+  const arch = (a || "").toLowerCase();
+  return arch ? '<span class="arch ' + arch + '">' + arch.toUpperCase() + "</span>" : "";
+}
+
+// Cada grupo = un equipo (amp/cab/pedal) con TODAS sus capturas.
+// Click en el equipo -> carga una captura por defecto (neutral) y despliega el submenú.
+function renderList(groups) {
   const listEl = $("model-list");
   listEl.innerHTML = "";
-  items.forEach((it) => {
+  groups.forEach((g) => {
+    const multi = (g.count || 1) > 1;
+
     const row = document.createElement("div");
-    row.className = "mitem";
-    const arch = (it.arch || "").toLowerCase();
-    const badge = arch
-      ? '<span class="arch ' + arch + '" title="Arquitectura del modelo NAM">' + arch.toUpperCase() + "</span>"
-      : "";
+    row.className = "mitem mgroup";
     row.innerHTML =
-      '<div class="mthumb">' + (it.ir ? "&#9636;" : "&#9835;") + '</div><div class="minfo">' +
-      '<div class="mname">' + esc(it.name || "") + "</div>" +
-      '<div class="msub">' + esc(it.detail || it.gear || "") + "</div></div>" +
-      badge;
+      '<div class="mthumb">' + (g.ir ? "&#9636;" : "&#9835;") + '</div><div class="minfo">' +
+      '<div class="mname">' + esc(g.name || "") + "</div>" +
+      '<div class="msub">' + esc(g.gear || "") + (multi ? " &middot; " + g.count + " capturas" : "") + "</div></div>" +
+      archBadge(g.arch) +
+      (multi ? '<span class="gchev">&#9656;</span>' : "");
+
+    let sub = null;
+    if (multi) {
+      sub = document.createElement("div");
+      sub.className = "gsub";
+      sub.hidden = true;
+      (g.captures || []).forEach((c) => {
+        const cr = document.createElement("div");
+        cr.className = "citem";
+        cr.innerHTML = '<div class="cdetail">' + esc(c.detail || "(base)") + "</div>" + archBadge(c.arch);
+        cr.addEventListener("click", async (ev) => {
+          ev.stopPropagation();
+          document.querySelectorAll(".citem.sel").forEach((e) => e.classList.remove("sel"));
+          cr.classList.add("sel");
+          await loadModelByPath(c.path);
+          refreshChain();
+        });
+        sub.appendChild(cr);
+      });
+    }
+
     row.addEventListener("click", async () => {
       document.querySelectorAll(".mitem.sel").forEach((e) => e.classList.remove("sel"));
       row.classList.add("sel");
-      await loadModelByPath(it.path);
-      refreshChain();
+      const opening = !sub || sub.hidden;
+      if (opening) { await loadModelByPath(g.defaultPath); refreshChain(); }
+      if (sub) { sub.hidden = !sub.hidden; row.classList.toggle("open"); }
     });
+
     listEl.appendChild(row);
+    if (sub) listEl.appendChild(sub);
   });
-  $("model-count").textContent = items.length + (items.length === 1 ? " modelo" : " modelos");
+  $("model-count").textContent = groups.length + (groups.length === 1 ? " equipo" : " equipos");
 }
 
 async function search() {

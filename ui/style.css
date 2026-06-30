@@ -67,6 +67,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 .arch.a1{color:#9fc7ff;background:rgba(86,132,201,.16);border-color:rgba(86,132,201,.40);}
 .arch.a2{color:#1a0e06;background:var(--accent);}            /* A2 = más nuevo/fiel -> naranja */
 .arch.custom{color:#d8b4fe;background:rgba(150,90,210,.18);border-color:rgba(150,90,210,.45);}
+/* equipo agrupado + submenú de capturas */
+.gchev{flex:0 0 auto;color:var(--dim);font-size:11px;transition:transform .15s;}
+.mgroup.open .gchev{transform:rotate(90deg);color:var(--accent);}
+.gsub{margin:0 0 6px 20px;border-left:1px solid var(--border);padding-left:4px;}
+.citem{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
+.citem:hover{background:var(--module);}
+.citem.sel{background:var(--module);border-color:var(--accent);}
+.cdetail{flex:1;min-width:0;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-family:'Cascadia Mono',Consolas,monospace;}
 .bcount{font-size:10px;color:var(--dim);}
 
 /* ===== Stage / cadena ===== */
