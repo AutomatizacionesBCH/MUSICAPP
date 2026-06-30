@@ -47,11 +47,16 @@ private:
     juce::WebSliderRelay       driveAmtRelay { "driveAmount" };
     juce::WebSliderRelay       driveLvlRelay { "driveLevel" };
     juce::WebToggleButtonRelay driveOnRelay  { "driveOn" };
+    juce::WebSliderRelay       chorusRateRelay  { "chorusRate" };
+    juce::WebSliderRelay       chorusDepthRelay { "chorusDepth" };
+    juce::WebSliderRelay       chorusMixRelay   { "chorusMix" };
+    juce::WebToggleButtonRelay chorusOnRelay    { "chorusOn" };
 
     juce::WebBrowserComponent  webView;
 
-    std::unique_ptr<juce::WebSliderParameterAttachment>       inAtt, outAtt, revAtt, drvAmtAtt, drvLvlAtt;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> irAtt, drvOnAtt;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       inAtt, outAtt, revAtt, drvAmtAtt, drvLvlAtt,
+                                                              chRateAtt, chDepthAtt, chMixAtt;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> irAtt, drvOnAtt, chOnAtt;
 
     // Buscador de modelos (popup nativo reusado) + persistencia de la carpeta.
     ModelLibrary mLibrary;

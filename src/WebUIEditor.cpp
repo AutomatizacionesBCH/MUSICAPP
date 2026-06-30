@@ -50,6 +50,10 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  .withOptionsFrom (driveAmtRelay)
                  .withOptionsFrom (driveLvlRelay)
                  .withOptionsFrom (driveOnRelay)
+                 .withOptionsFrom (chorusRateRelay)
+                 .withOptionsFrom (chorusDepthRelay)
+                 .withOptionsFrom (chorusMixRelay)
+                 .withOptionsFrom (chorusOnRelay)
                  .withNativeFunction ("loadModel",
                      [this] (const juce::Array<juce::var>&, auto complete)
                      { openModelBrowser(); complete (juce::var()); })
@@ -127,6 +131,14 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                  *processorRef.apvts.getParameter ("driveLevel"), driveLvlRelay, nullptr);
     drvOnAtt  = std::make_unique<juce::WebToggleButtonParameterAttachment> (
                  *processorRef.apvts.getParameter ("driveOn"), driveOnRelay, nullptr);
+    chRateAtt  = std::make_unique<juce::WebSliderParameterAttachment> (
+                 *processorRef.apvts.getParameter ("chorusRate"),  chorusRateRelay,  nullptr);
+    chDepthAtt = std::make_unique<juce::WebSliderParameterAttachment> (
+                 *processorRef.apvts.getParameter ("chorusDepth"), chorusDepthRelay, nullptr);
+    chMixAtt   = std::make_unique<juce::WebSliderParameterAttachment> (
+                 *processorRef.apvts.getParameter ("chorusMix"),   chorusMixRelay,   nullptr);
+    chOnAtt    = std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                 *processorRef.apvts.getParameter ("chorusOn"), chorusOnRelay, nullptr);
 
     // Carpeta de librería persistida (para el ModelBrowser).
     juce::PropertiesFile::Options opts;

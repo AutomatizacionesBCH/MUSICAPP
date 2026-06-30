@@ -118,6 +118,10 @@ bindKnob("k-out", "v-out", "outputGain", fmtDb);
 bindKnob("k-rev", "v-rev", "reverbMix", fmtPct);
 bindKnob("k-drv", "v-drv", "driveAmount", fmtPct);
 bindKnob("k-lvl", "v-lvl", "driveLevel", fmtPct);
+const fmtHz = (v) => v.toFixed(2) + " Hz";
+bindKnob("k-chr", "v-chr", "chorusRate", fmtHz);
+bindKnob("k-chd", "v-chd", "chorusDepth", fmtPct);
+bindKnob("k-chm", "v-chm", "chorusMix", fmtPct);
 
 // ===== toggles (WebToggleButtonRelay) =====
 function bindToggle(id, paramName) {
@@ -129,6 +133,7 @@ function bindToggle(id, paramName) {
 }
 bindToggle("ir-toggle", "irOn");
 bindToggle("drive-toggle", "driveOn");
+bindToggle("chorus-toggle", "chorusOn");
 
 // ===== medidores + afinador (evento "meters") =====
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];

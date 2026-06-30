@@ -90,6 +90,10 @@ private:
 
     juce::Reverb mReverb;                 // post-FX (mono)
 
+    // Chorus algorítmico (mod, post-amp/cab, pre-reverb). LFO + delay modulado
+    // (juce_dsp). No es una captura: es DSP con perillas, voiced estilo 80s.
+    juce::dsp::Chorus<float> mChorus;
+
     std::atomic<float> mInPeak  { 0.0f };
     std::atomic<float> mOutPeak { 0.0f };
 
@@ -105,6 +109,10 @@ private:
     std::atomic<float>* mDriveOn       = nullptr;   // bypass del drive (pre-FX)
     std::atomic<float>* mDriveAmount   = nullptr;
     std::atomic<float>* mDriveLevel    = nullptr;
+    std::atomic<float>* mChorusOn      = nullptr;   // bypass del chorus (post-amp)
+    std::atomic<float>* mChorusRate    = nullptr;   // Hz del LFO
+    std::atomic<float>* mChorusDepth   = nullptr;   // profundidad 0..1
+    std::atomic<float>* mChorusMix     = nullptr;   // dry/wet 0..1
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MusicAppAudioProcessor)
 };

@@ -92,6 +92,10 @@ MusicAppAudioProcessor::MusicAppAudioProcessor()
     mDriveOn      = apvts.getRawParameterValue ("driveOn");
     mDriveAmount  = apvts.getRawParameterValue ("driveAmount");
     mDriveLevel   = apvts.getRawParameterValue ("driveLevel");
+    mChorusOn     = apvts.getRawParameterValue ("chorusOn");
+    mChorusRate   = apvts.getRawParameterValue ("chorusRate");
+    mChorusDepth  = apvts.getRawParameterValue ("chorusDepth");
+    mChorusMix    = apvts.getRawParameterValue ("chorusMix");
 
     // Carga inicial del modelo por defecto (el audio aún no corre, así que es
     // seguro asignar mModel directamente; el Reset se hará en prepareToPlay).
@@ -151,6 +155,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout MusicAppAudioProcessor::crea
         juce::ParameterID { "driveLevel", 1 }, "Drive Level",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.7f));
 
+    // Chorus (mod, post-amp). Defaults voiced "80s": LFO lento, profundidad media.
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "chorusOn", 1 }, "Chorus", false));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "chorusRate", 1 }, "Chorus Rate",
+        juce::NormalisableRange<float> (0.1f, 5.0f, 0.01f), 0.8f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "chorusDepth", 1 }, "Chorus Depth",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "chorusMix", 1 }, "Chorus Mix",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.4f));
+
     return layout;
 }
 
@@ -191,6 +208,9 @@ void MusicAppAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     const juce::dsp::ProcessSpec spec { sampleRate, (juce::uint32) samplesPerBlock, 1 };
     mConvolution.prepare (spec);
     mConvolution.reset();
+
+    mChorus.prepare (spec);     // mismo spec mono que el IR
+    mChorus.reset();
 
     if (mModel != nullptr)
         prepareModel (*mModel);
@@ -277,6 +297,22 @@ void MusicAppAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         juce::dsp::AudioBlock<float> irBlock (irChans, 1, (size_t) n);
         juce::dsp::ProcessContextReplacing<float> irCtx (irBlock);
         mConvolution.process (irCtx);
+    }
+
+    // 3.6) Chorus (mod, post-cab). DSP algorítmico (no captura): LFO + delay
+    //      modulado. Voicing 80s: delay ~7 ms (BBD), sin realimentación.
+    if (mChorusOn != nullptr && mChorusOn->load() > 0.5f)
+    {
+        mChorus.setRate        (juce::jlimit (0.1f, 5.0f, mChorusRate->load()));
+        mChorus.setDepth       (juce::jlimit (0.0f, 1.0f, mChorusDepth->load()));
+        mChorus.setCentreDelay (7.0f);
+        mChorus.setFeedback    (0.0f);
+        mChorus.setMix         (juce::jlimit (0.0f, 1.0f, mChorusMix->load()));
+
+        float* chChans[1] = { mWork.data() };
+        juce::dsp::AudioBlock<float> chBlock (chChans, 1, (size_t) n);
+        juce::dsp::ProcessContextReplacing<float> chCtx (chBlock);
+        mChorus.process (chCtx);
     }
 
     // 4) Reverb (post-FX, mono).

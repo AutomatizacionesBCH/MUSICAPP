@@ -84,7 +84,21 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   `driveAmount`, `driveLevel`; en `processBlock` soft-clip `tanh(in * (1+amount*30)) * level` sobre la
   entrada antes del NAM. UI: bloque **PRE·DRIVE** en la cadena (knobs DRIVE/LEVEL + toggle), cableado por
   relays. Cadena actual: `IN → PRE·DRIVE → AMP·NAM → CAB·IR → POST·REVERB → OUT`. Binding verificado
-  (knobs arrancan en 30%/70% = defaults reales). **Siguiente:** grabador, metrónomo, gráficos por bloque.
+  (knobs arrancan en 30%/70% = defaults reales).
+- **Arquitectura de la cadena — NAM vs algorítmico (decisión clave, investigada 2026-06-29):** NAM
+  captura sistemas **no-lineales y "estáticos"** (sin memoria larga ni LFO interno). Por eso en TONE3000
+  hay capturas `.nam` de **amps Y pedales de ganancia** (drive/OD/dist/fuzz/boost — Tube Screamer, Fuzz
+  Face, etc.) → estos **se cargan como bloques de captura** (varios NAM en serie). Pero **reverb / delay /
+  modulación (chorus/flanger/phaser/tremolo) NO se pueden capturar** con NAM → se programan como **DSP
+  algorítmico** (perillas), usando `juce_dsp` (Chorus, Phaser, DelayLine, Compressor, NoiseGate, IIR) o
+  algoritmos canónicos (Freeverb, Dattorro plate, FDN). **Cadena correcta:** PEDALES(NAM) → AMP(NAM) →
+  CAB(IR) → FX algorítmicos. **Pendiente:** slot de PEDAL NAM cargable; cadena flexible multi-bloque.
+- **Bloque CHORUS algorítmico ✅ (2026-06-29):** primer FX de modulación programado (no es captura).
+  `juce::dsp::Chorus<float>` (LFO + delay modulado), voiced 80s: `setCentreDelay(7ms)` BBD, sin feedback;
+  params `chorusOn`/`chorusRate`(0.1-5Hz)/`chorusDepth`/`chorusMix`. Se procesa post-cab, pre-reverb sobre
+  `mWork` (mono). UI: bloque **MOD·CHORUS** (RATE/DEPTH/MIX + toggle), relays. Mono por ahora (el motor
+  colapsa a mono temprano; chorus estéreo = mejora futura). Patrón reusable para delay/flanger/etc.
+  **Siguiente:** slot PEDAL NAM, grabador, metrónomo, gráficos por bloque.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar
