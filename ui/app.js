@@ -122,6 +122,16 @@ function bindToggle(id, paramName) {
   t.addEventListener("click", () => st.setValue(!st.getValue()));
 }
 
+// ===== zoom de la interfaz (escala todo) =====
+let uiZoom = 1;
+function applyZoom() {
+  document.body.style.zoom = uiZoom;
+  const l = $("zoom-lbl");
+  if (l) l.textContent = Math.round(uiZoom * 100) + "%";
+}
+$("zoom-out").addEventListener("click", () => { uiZoom = Math.max(0.5, Math.round((uiZoom - 0.1) * 10) / 10); applyZoom(); });
+$("zoom-in").addEventListener("click", () => { uiZoom = Math.min(1.6, Math.round((uiZoom + 0.1) * 10) / 10); applyZoom(); });
+
 // ===== rack flexible: TODA la cadena (Drive/Amp/Cab + efectos), arrastrable =====
 const loadModel = Juce.getNativeFunction("loadModel");
 const loadPedal = Juce.getNativeFunction("loadPedal");
@@ -207,7 +217,9 @@ function blockBody(sec, blk) {
     btn.addEventListener("click", async (e) => { e.stopPropagation(); await loadIR(); refreshChain(); });
     sec.append(photo, nm, btn);
   } else {
-    (blk.params || []).forEach((p) => sec.appendChild(makeKnob(blk.uid, p)));
+    const knobs = document.createElement("div"); knobs.className = "knobs";
+    (blk.params || []).forEach((p) => knobs.appendChild(makeKnob(blk.uid, p)));
+    sec.appendChild(knobs);
     if (blk.kind === "drive") {
       const loaded = (blk.extra && blk.extra.loaded) || "";
       if (loaded) {

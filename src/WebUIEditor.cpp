@@ -203,7 +203,7 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
     mLibrary.setFolder (libFolder);
 
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
-    setSize (1480, 740);   // ancho para el rack; alto ajustado al contenido (flujo normal)
+    setSize (1300, 740);   // entra el topright en pantallas comunes; el rack hace scroll
 
     mPitchBuf.assign (2048, 0.0f);
     startTimerHz (24);   // medidores + afinador

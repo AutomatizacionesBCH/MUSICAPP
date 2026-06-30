@@ -152,6 +152,12 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   2 líneas (equipo + detalle); el **panel izquierdo** tiene chips funcionales (Todos/Amp/Amp-Cab/Pedal/IR).
   **Ruteo por tipo** (no por botón): IR→cab, pedal→bloque Drive (`fx().firstUidOfKind("drive")`), resto→amp;
   cada botón "Cargar X" sólo abre la pestaña por defecto. Nombres/detalle en **ASCII** (van al WebView por JSON).
+- **Layout: bloques iguales + zoom ✅ (2026-06-30):** todos los `.block` con `height:286px` (rack parejo
+  tipo Ableton); perillas en `.knobs` (grid 2 columnas, compacto — caben hasta 5+ knobs). `.block.io`
+  centra su única perilla. **Control de zoom** en la cabecera de la cadena (`[−] % [+]` → `body.style.zoom`,
+  escala todo). Ventana **1300×740** (entra el topright en pantallas comunes; el rack hace scroll-x).
+  **Pendiente:** "llenar al maximizar / barra inferior anclada abajo" sigue siendo el gotcha de altura del
+  WebView (ver gotchas) — pendiente con otra técnica.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS
