@@ -1,84 +1,130 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="style.css"></head>
+<link rel="stylesheet" href="style.css?v=5"></head>
 <body>
-  <!-- ===== Barra superior ===== -->
+
+  <!-- ===================== TOP BAR ===================== -->
   <header class="topbar">
     <div class="brand">
-      <span class="logo"></span><b>Music App</b><span class="sub">&middot; nombre provisional</span>
+      <svg class="logo" width="30" height="30" viewBox="0 0 30 30">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffce7a"/><stop offset="1" stop-color="#e8732a"/></linearGradient></defs>
+        <rect x="2" y="2" width="26" height="26" rx="7" fill="#1a120a" stroke="url(#lg)" stroke-width="1.4"/>
+        <path d="M8 20 L8 11 Q15 5 22 11 L22 20" fill="none" stroke="url(#lg)" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="15" cy="20" r="2.4" fill="url(#lg)"/>
+        <path d="M5 24 H25" stroke="url(#lg)" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+      </svg>
+      <div class="name">Music App<small>NAM STUDIO</small></div>
     </div>
+
+    <div class="divider"></div>
+
     <div class="preset">
-      <span class="ptag">PRESET</span><input id="preset-name" class="pinput" value="Default" autocomplete="off">
-    </div>
-    <div class="topright">
-      <button class="tbtn" id="btn-save">Guardar</button>
+      <div class="pcol"><div class="pl">PRESET</div>
+        <input id="preset-name" class="pv" value="Default" autocomplete="off" spellcheck="false"></div>
       <div class="presetwrap">
-        <button class="tbtn" id="btn-presets">Presets</button>
+        <button class="iconbtn" id="btn-presets" title="Presets">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         <div class="presetpop" id="presets-pop" hidden></div>
       </div>
-      <span class="t3k">&#9679; TONE3000</span>
-      <button class="tbtn icon" id="btn-cfg">&#9881;</button>
+      <button class="iconbtn save" id="btn-save" title="Guardar preset">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 3h11l3 3v15H5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 3v5h7" stroke="currentColor" stroke-width="1.6"/><rect x="8" y="13" width="8" height="5" rx="1" stroke="currentColor" stroke-width="1.6"/></svg></button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- IN / OUT gain -->
+    <div class="io">
+      <div class="knob mini"><div class="dial" id="k-in"><div class="cap"></div></div>
+        <div class="kl">INPUT</div><div class="kval" id="v-in">0.0 dB</div></div>
+      <div class="knob mini"><div class="dial" id="k-out"><div class="cap"></div></div>
+        <div class="kl">MASTER</div><div class="kval" id="v-out">0.0 dB</div></div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="stat">
+      <div class="row">SR <b>48 kHz</b></div>
+      <div class="row">LAT <b>5.8 ms</b><span class="t3k">&#9679; TONE3000</span></div>
     </div>
   </header>
 
-  <!-- ===== Cuerpo: buscador + cadena ===== -->
+  <!-- ===================== MAIN ===================== -->
   <div class="main">
-    <aside class="browser">
-      <div class="bhead"><b>Buscador de tonos</b><span class="t3klabel">TONE3000</span></div>
-      <input class="search" id="search" placeholder="Buscar amps, pedales, IR..." autocomplete="off">
-      <div class="chips">
-        <span class="chip on" data-tab="">Todos</span><span class="chip" data-tab="amp">Amp</span><span class="chip" data-tab="amp-cab">Amp-Cab</span><span class="chip" data-tab="pedal">Pedal</span><span class="chip" data-tab="ir">IR</span>
-      </div>
-      <div class="list" id="model-list"></div>
-      <div class="bcount" id="model-count"></div>
-    </aside>
 
+    <!-- ===== STAGE / SIGNAL CHAIN ===== -->
     <section class="stage">
-      <div class="stagehead">
-        <div class="stleft">
-          <span class="stitle">Cadena de senal</span>
+      <div class="chain-head">
+        <h2><span class="dotline"></span>SIGNAL CHAIN</h2>
+        <div class="chright">
           <div class="zoomctl">
             <button class="zbtn" id="zoom-out" title="Menos zoom">&#8722;</button>
             <span class="zlabel" id="zoom-lbl">100%</span>
             <button class="zbtn" id="zoom-in" title="Más zoom">+</button>
           </div>
+          <div class="hint">arrastra para reordenar</div>
         </div>
-        <span class="seriestoggle"><span class="seg on">Serie</span><span class="seg">Dual / Paralelo</span></span>
       </div>
-      <div class="rack">
-        <section class="block io">
-          <div class="bh"><span>IN</span></div>
-          <div class="kwrap"><div class="knob" id="k-in"></div><div class="klabel">GAIN</div><div class="kval" id="v-in">0.0 dB</div></div>
-        </section>
-        <div class="arrow"></div>
 
-        <!-- Toda la cadena (Drive/Amp/Cab + efectos) es dinámica y arrastrable -->
+      <div class="board">
+        <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+
+        <div class="node jack"><div class="ring"><i></i></div><div class="jlab">IN</div><div class="jsub">guitar</div></div>
+        <div class="gap"></div>
+
+        <!-- cadena dinámica (Drive / Amp / Cab / FX) -->
         <div id="fx-rack" class="fxrack"></div>
+
         <div class="fxaddwrap">
-          <button class="fxadd" id="fx-add-btn" title="Añadir efecto al rack">+ Efecto</button>
+          <button class="fxadd" id="fx-add-btn" title="Añadir efecto">+ FX</button>
           <div class="fxmenu" id="fx-menu" hidden></div>
         </div>
-        <div class="arrow"></div>
 
-        <section class="block io">
-          <div class="bh"><span>OUT</span></div>
-          <div class="kwrap"><div class="knob" id="k-out"></div><div class="klabel">MASTER</div><div class="kval" id="v-out">0.0 dB</div></div>
-        </section>
+        <div class="gap"></div>
+        <div class="node jack"><div class="ring"><i></i></div><div class="jlab">OUT</div><div class="jsub">interface</div></div>
       </div>
     </section>
+
+    <!-- ===== TONE BROWSER ===== -->
+    <aside class="browser">
+      <div class="bh">
+        <div class="ttl"><span class="ic">&#9836;</span>TONE BROWSER</div>
+        <div class="searchbox">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8d7a5e" stroke-width="1.8"/><path d="M21 21l-4-4" stroke="#8d7a5e" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input id="search" placeholder="Buscar equipo, EQ, mic…" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="chips tabs">
+          <span class="chip tab on" data-tab="">Todos</span><span class="chip tab" data-tab="amp">Amp</span><span class="chip tab" data-tab="amp-cab">Cab</span><span class="chip tab" data-tab="pedal">Pedal</span><span class="chip tab" data-tab="ir">IR</span>
+        </div>
+      </div>
+      <div class="blist" id="model-list"></div>
+      <div class="bcount" id="model-count"></div>
+    </aside>
   </div>
 
-  <!-- ===== Barra inferior: medidores + afinador ===== -->
-  <footer class="bottombar">
-    <div class="meter"><span class="mlabel">IN</span><div class="mbar"><div class="mfill" id="in-fill"></div></div></div>
-    <div class="tuner">
-      <div class="tnote" id="t-note">&mdash;</div>
-      <div class="tscale"><div class="tcenter"></div><div class="tneedle" id="t-needle"></div></div>
-      <div class="thz" id="t-hz"></div>
+  <!-- ===================== FOOTER: METERS + TUNER ===================== -->
+  <footer class="footer">
+    <div class="panel">
+      <div class="ph">INPUT <span class="unit">dBFS</span></div>
+      <div class="ladder" id="in-ladder"></div>
     </div>
-    <div class="meter"><span class="mlabel">OUT</span><div class="mbar"><div class="mfill" id="out-fill"></div></div></div>
+
+    <div class="panel tunerbig">
+      <div class="ph center">AFINADOR <span class="unit">CROMÁTICO</span></div>
+      <div class="tnote" id="t-note">&mdash;</div>
+      <div class="tsub" id="t-hz"></div>
+      <div class="scale">
+        <div class="ticks"><i></i><i></i><i></i><i></i><i class="mid"></i><i></i><i></i><i></i><i></i></div>
+        <div class="needle" id="t-needle"></div>
+      </div>
+      <div class="cents"><span>-50</span><span>0</span><span>+50</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="ph">OUTPUT <span class="unit">dBFS</span></div>
+      <div class="ladder" id="out-ladder"></div>
+    </div>
   </footer>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body></html>
