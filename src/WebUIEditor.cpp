@@ -52,7 +52,33 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                      { openModelBrowser(); complete (juce::var()); })
                  .withNativeFunction ("loadIR",
                      [this] (const juce::Array<juce::var>&, auto complete)
-                     { chooseIR(); complete (juce::var()); }))
+                     { chooseIR(); complete (juce::var()); })
+                 .withNativeFunction ("listModels",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         const juce::String q = args.size() > 0 ? args[0].toString() : juce::String();
+                         const auto entries = mLibrary.filter (q);
+                         juce::Array<juce::var> out;
+                         for (int i = 0; i < juce::jmin (entries.size(), 250); ++i)
+                         {
+                             juce::DynamicObject::Ptr e = new juce::DynamicObject();
+                             e->setProperty ("label", entries[i].relPath);
+                             e->setProperty ("path",  entries[i].file.getFullPathName());
+                             out.add (juce::var (e.get()));
+                         }
+                         complete (juce::var (out));
+                     })
+                 .withNativeFunction ("loadModelByPath",
+                     [this] (const juce::Array<juce::var>& args, auto complete)
+                     {
+                         if (args.size() > 0)
+                         {
+                             const juce::File f (args[0].toString());
+                             if (processorRef.loadNamModel (f))
+                                 notifyChanged();
+                         }
+                         complete (juce::var());
+                     }))
 {
     addAndMakeVisible (webView);
 
@@ -80,7 +106,7 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
     mLibrary.setFolder (libFolder);
 
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
-    setSize (900, 520);
+    setSize (1180, 780);
 
     mPitchBuf.assign (2048, 0.0f);
     startTimerHz (24);   // medidores + afinador

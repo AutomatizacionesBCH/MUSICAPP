@@ -65,6 +65,14 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   motor guarda la entrada en un ring buffer (`getRecentInput`); el `WebUIEditor` (un `juce::Timer` a
   24 Hz) hace **detección de pitch por autocorrelación** y empuja `{in,out,hz}` por el evento `meters`.
   **Siguiente:** grabador, metrónomo, buscador de presets, drive (camino a la completitud tipo AmpliTube).
+- **UI WebView — layout completo tipo AmpliTube ✅ (2026-06-29):** la UI se acerca al mockup. **3 zonas:**
+  barra superior (logo, PRESET, Guardar/Presets, TONE3000), **buscador de tonos a la izquierda**
+  (búsqueda + chips + lista de la librería, funcional vía funciones nativas `listModels`/`loadModelByPath`
+  — click carga el modelo), **cadena** central con bloques estilo mockup (IN·GAIN, AMP·NAM con "MODELO
+  CARGADO" + foto, CAB·IR con toggle + Cargar IR, POST·REVERB·MIX, OUT·MASTER), y **barra inferior**
+  (medidores + afinador). Controles **reales** (sin EQ falsa de amp; NAM es caja negra). Ventana 1180×780.
+  **Pulido pendiente:** el extremo derecho de la barra superior se recorta por el viewport DPI; añadir
+  drive, presets (guardar/cargar rig), grabador, metrónomo; gráficos de ampli/pedal por bloque.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar
