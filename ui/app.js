@@ -3,6 +3,7 @@ import * as Juce from "./juce/index.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+
 // ===== estado: re-renderiza la cadena (amp/cab muestran su nombre+foto) =====
 function refreshState() { refreshChain(); }
 
@@ -17,8 +18,14 @@ function renderList(items) {
   items.forEach((it) => {
     const parts = it.label.split("/");
     const file = parts[parts.length - 1];
-    const name = (file.split("__")[0] || file).replace(/\.nam$/, "");
-    const sub = parts.slice(0, -1).join(" / ");
+    const toneFolder = parts[parts.length - 2] || "";
+    const slug = toneFolder.replace(/-\d+$/, "");               // quita el id final
+    const tc = (w) => (w ? w[0].toUpperCase() + w.slice(1) : w);
+    const name = slug ? slug.split("-").map(tc).join(" ") : file.replace(/\.nam$/, "");
+    const segs = file.split("__");                              // {name}__{size}__{arch}__{id}
+    const arch = (segs.length >= 4 ? segs[segs.length - 2] : "").toUpperCase();
+    const gear = parts[0] || "";
+    const sub = [gear, arch].filter(Boolean).join(" · ");
     const row = document.createElement("div");
     row.className = "mitem";
     row.innerHTML =

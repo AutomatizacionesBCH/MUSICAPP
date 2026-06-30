@@ -28,33 +28,33 @@ manual oficial). **76 tipos** que cubren ~140 modelos de Helix.
 | Barberpole Phaser | Barberpole | 🔴 | ⏳ |
 | Tremolo óptico | Optical/Opto Trem | 🟢 | ✅ |
 | Tremolo bias | 60s Bias Trem | 🟡 | ⏳ |
-| Tremolo armónico | Harmonic Tremolo | 🟡 | ⏳ |
+| Tremolo armónico | Harmonic Tremolo | 🟡 | ✅ |
 | Tremolo rítmico | Bleat Chop, Pattern | 🟡 | ⏳ |
 | Auto-Pan | Panner, Autopan | 🟢 | ⏳ (estéreo) |
-| Uni-Vibe | Ubiquitous/U-Vibe | 🟡 | ⏳ |
-| Vibrato (pitch real) | VB-2, FlexoVibe | 🟡 | ⏳ |
+| Uni-Vibe | Ubiquitous/U-Vibe | 🟡 | ✅ |
+| Vibrato (pitch real) | VB-2, FlexoVibe | 🟡 | ✅ |
 | Rotary / Leslie | 122/145, Vibratone | 🔴 | ⏳ |
-| Ring Mod | Ring Mod, AM Ring Mod | 🟡 | ⏳ |
+| Ring Mod | Ring Mod, AM Ring Mod | 🟡 | ✅ |
 | Pitch Ring Mod | Pitch Ring Mod | 🔴 | ⏳ |
 | Frequency Shifter | Frequency Shift | 🔴 | ⏳ |
 | Poly Detune / Doubler | Poly Detune, Double Take | 🟡 | ⏳ |
 | Random S&H | Random S&H | 🟡 | ⏳ |
-| Filter Sweep (LFO-wah) | Sweeper, Warble-Matic | 🟡 | ⏳ |
+| Filter Sweep (LFO-wah) | Sweeper, Warble-Matic | 🟡 | ✅ |
 | Tape Wow/Flutter | Retro Reel | 🟡 | ⏳ |
 
 ## 🔁 Delay (21)
 | Efecto | Cubre | Dif | Estado |
 |---|---|---|---|
 | Digital (limpio) | Simple, Digital, Dual, Lo-Res | 🟢 | ✅ |
-| Tape Echo | Echoplex EP-1/EP-3, Tube Echo | 🟡 | ⏳ |
+| Tape Echo | Echoplex EP-1/EP-3, Tube Echo | 🟡 | ✅ |
 | Space Echo | Cosmos, Multi-Head | 🟡 | ⏳ |
-| Analog/BBD | Bucket Brigade, Memory Man | 🟡 | ⏳ |
+| Analog/BBD | Bucket Brigade, Memory Man | 🟡 | ✅ |
 | Modulado / Chorus Echo | Mod/Chorus Echo, Phaze Eko | 🟢 | ⏳ |
 | Ping-Pong | Ping Pong | 🟡 | ⏳ (estéreo) |
-| Multi-Tap | Multitap 4/6, Multi Pass | 🟡 | ⏳ |
+| Multi-Tap | Multitap 4/6, Multi Pass | 🟡 | ✅ |
 | Sweep Echo | Sweep Echo, Bubble | 🟡 | ⏳ |
-| Reverse | Reverse Delay | 🟡 | ⏳ |
-| Ducking / Dynamic | Ducked, Dynamic (TC 2290) | 🟡 | ⏳ |
+| Reverse | Reverse Delay | 🟡 | ✅ |
+| Ducking / Dynamic | Ducked, Dynamic (TC 2290) | 🟡 | ✅ |
 | Pitch Echo | Pitch Echo | 🔴 | ⏳ |
 | Harmony Delay | Harmony Delay | 🔴 | ⏳ |
 | Poly Sustain | Poly Sustain | 🔴 | ⏳ |
@@ -70,13 +70,13 @@ manual oficial). **76 tipos** que cubren ~140 modelos de Helix.
 ## 🎚 Pitch / Synth (14)
 | Efecto | Cubre | Dif | Estado |
 |---|---|---|---|
-| Octaver (analógico) | Boctaver, Bass Octaver | 🟡 | ⏳ |
-| Ring Mod | Saturn 5 | 🟢 | ⏳ |
+| Octaver (analógico) | Boctaver, Bass Octaver | 🟡 | ✅ |
+| Ring Mod | Saturn 5 | 🟢 | ✅ (en Modulación) |
 | Mono Synth (sub/oct) | Seismik, Octi, Double Bass | 🟡 | ⏳ |
 | Synth resonante | Rez, Growler, Synth Lead | 🟡 | ⏳ |
 | Synth wavetable/strings | Buzz Wave, Synth String | 🟡 | ⏳ |
 | Multi-osc generator | 3-OSC, 4-OSC Generator | 🟡 | ⏳ |
-| Mono Pitch shifter | Simple Pitch | 🟡 | ⏳ |
+| Mono Pitch shifter | Simple Pitch | 🟡 | ✅ |
 | Dual Pitch | Dual Pitch | 🟡 | ⏳ |
 | Pitch Wham (Whammy) | Pitch Wham | 🟡 | ⏳ |
 | Smart Harmony | Smart Harmony | 🔴 | ⏳ |
@@ -89,14 +89,14 @@ manual oficial). **76 tipos** que cubren ~140 modelos de Helix.
 |---|---|---|---|
 | Room | Room, Dynamic Room | 🟢 | ✅ |
 | Chamber | Chamber | 🟢 | ⏳ |
-| Hall | Hall, Dynamic Hall | 🟡 | ⏳ |
-| Plate | Plate, Double Tank | 🟡 | ⏳ (Dattorro) |
+| Hall | Hall, Dynamic Hall | 🟡 | ✅ |
+| Plate | Plate, Double Tank | 🟡 | ✅ (allpass+Freeverb) |
 | Tile | Tile | 🟢 | ⏳ |
 | Cave | Cave | 🟡 | ⏳ |
 | Echo Reverb | Echo | 🟢 | ⏳ |
 | Spring | '63 Spring, Hot Springs | 🔴 | ⏳ |
-| Ducking | Ducking | 🟡 | ⏳ |
-| Nonlinear / Gated | Nonlinear | 🟡 | ⏳ |
+| Ducking | Ducking | 🟡 | ✅ |
+| Nonlinear / Gated | Nonlinear | 🟡 | ✅ (Gated) |
 | Octo (armonizado) | Octo | 🔴 | ⏳ |
 | Shimmer | Shimmer | 🔴 | ⏳ |
 | Particle | Particle Verb | 🔴 | ⏳ |

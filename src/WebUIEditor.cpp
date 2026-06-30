@@ -153,7 +153,10 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
                          if (args.size() > 2)
                              processorRef.fx().setParam ((int) args[0], args[1].toString(), (float) (double) args[2]);
                          complete (juce::var());
-                     }))
+                     })
+                 .withNativeFunction ("appHeight",
+                     [this] (const juce::Array<juce::var>&, auto complete)
+                     { complete (juce::var (getHeight())); }))
 {
     addAndMakeVisible (webView);
 
@@ -177,7 +180,7 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
     mLibrary.setFolder (libFolder);
 
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
-    setSize (1480, 800);   // más ancho: el rack flexible crece; el resto hace scroll
+    setSize (1480, 740);   // ancho para el rack; alto ajustado al contenido (flujo normal)
 
     mPitchBuf.assign (2048, 0.0f);
     startTimerHz (24);   // medidores + afinador
@@ -320,8 +323,16 @@ void WebUIEditor::openModelBrowser()
 
 void WebUIEditor::chooseIR()
 {
-    auto startDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                      .getChildFile ("Music App").getChildFile ("irs");
+    juce::File startDir;
+    if (mSettings != nullptr)   // misma librería que los modelos -> subcarpeta cab (IRs)
+    {
+        const juce::File lib (mSettings->getValue ("modelLibraryFolder", {}));
+        if (lib.getChildFile ("cab").isDirectory()) startDir = lib.getChildFile ("cab");
+        else if (lib.isDirectory())                 startDir = lib;
+    }
+    if (! startDir.isDirectory())
+        startDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                     .getChildFile ("Music App").getChildFile ("irs");
     if (! startDir.isDirectory())
         startDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
 

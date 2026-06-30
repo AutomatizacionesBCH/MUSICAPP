@@ -126,7 +126,23 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   **Siguiente:** poblar el rack (Pack 1: vibrato, uni-vibe, tape/BBD/ducking/reverse delay, hall/plate/
   spring reverb, octaver, whammy) — paralelizable con workflow; luego slot PEDAL NAM, grabador, metrónomo.
 
+- **Pack de 22 efectos en el rack ✅ (2026-06-30):** 16 efectos nuevos (workflow paralelo) + los 6 base.
+  **Modulación:** Chorus, Flanger, Phaser, Tremolo, Harm Tremolo, Vibrato, Uni-Vibe, Ring Mod, Filter Sweep.
+  **Delay:** Delay, Tape Echo, Analog/BBD, Multi-Tap, Reverse, Ducking. **Pitch:** Octaver, Pitch.
+  **Reverb:** Reverb, Hall, Plate, Ducking, Gated. Cada efecto = 1 header en `src/fx/blocks/` + 1 línea en
+  `FxFactory.cpp` (typeId/displayName/category). Self-test (crear/preparar/procesar señal) pasó los 22 sin
+  NaN/crash. Menú "+ Efecto" agrupado por categoría. `docs/effects-catalog.md` marca el estado.
+- **Modelos descargados + nombres limpios + IRs (2026-06-30):** buscador apunta a `downloads` (7.000 `.nam`).
+  Nombre = carpeta del tono des-slugificada (`fender-super-reverb-1977` → "Fender Super Reverb 1977") + sub
+  `{gear} · {arch a1/a2}`. "Cargar IR" apunta a `downloads/cab` (770 IRs ya bajados). Descarga de tone3000
+  cortada (catálogo completo ~45 GB / días — no vale la pena).
+
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
+- **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS
+  100%/100vh o por JS con innerHeight/getHeight) NO constriñe el layout: la lista `flex:1` lo desborda y
+  empuja la barra inferior fuera, y `overflow:hidden` en html lo deja en blanco. → la app usa **flujo
+  normal** con la ventana (`setSize`) ajustada al contenido. El "estirar y anclar la barra inferior abajo"
+  queda PENDIENTE con otra técnica (posible: ResizeObserver + reflow forzado, o un wrapper con altura JS).
 - **Strings C++ → JS por funciones nativas (JSON) deben ser ASCII.** Un `·`/`ó` en un `displayName` o
   categoría sale mojibake (`Â·`, `Ã³`) en el WebView. El texto en HTML/CSS/JS (servido como recurso UTF-8)
   sí soporta acentos/entidades. → nombres de bloque y categorías en ASCII.

@@ -50,7 +50,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 .chip{font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);
   color:var(--muted);background:var(--module);cursor:pointer;}
 .chip.on{color:var(--accent);border-color:var(--accent);background:rgba(255,122,41,.1);}
-.list{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:2px;}
+.list{max-height:460px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:2px;}
 .list::-webkit-scrollbar{width:8px;} .list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 .mitem{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer;
   border:1px solid transparent;}
