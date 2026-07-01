@@ -26,9 +26,29 @@ function archBadge(a, cls) {
   return '<span class="' + (cls || "a2") + " " + arch + '">' + arch.toUpperCase() + "</span>";
 }
 
+// construye las capturas de un grupo (LAZY: solo al desplegar, así el arranque no crea ~2200 nodos)
+function buildCaps(caps, g) {
+  const frag = document.createDocumentFragment();
+  (g.captures || []).forEach((c) => {
+    const cr = document.createElement("div");
+    cr.className = "cap-row";
+    cr.innerHTML = '<span class="cap-dot"></span><span class="cap-set">' + esc(c.detail || "(base)") + "</span>" + archBadge(c.arch, "cap-a2");
+    cr.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      document.querySelectorAll(".cap-row.sel").forEach((e) => e.classList.remove("sel"));
+      cr.classList.add("sel");
+      await loadModelByPath(c.path);
+      refreshChain();
+    });
+    frag.appendChild(cr);
+  });
+  caps.appendChild(frag);
+}
+
 function renderList(groups) {
   const listEl = $("model-list");
   listEl.innerHTML = "";
+  const frag = document.createDocumentFragment();
   groups.forEach((g) => {
     const multi = (g.count || 1) > 1;
     const gear = document.createElement("div");
@@ -47,31 +67,23 @@ function renderList(groups) {
       caps = document.createElement("div");
       caps.className = "captures";
       caps.hidden = true;
-      (g.captures || []).forEach((c) => {
-        const cr = document.createElement("div");
-        cr.className = "cap-row";
-        cr.innerHTML = '<span class="cap-dot"></span><span class="cap-set">' + esc(c.detail || "(base)") + "</span>" + archBadge(c.arch, "cap-a2");
-        cr.addEventListener("click", async (ev) => {
-          ev.stopPropagation();
-          document.querySelectorAll(".cap-row.sel").forEach((e) => e.classList.remove("sel"));
-          cr.classList.add("sel");
-          await loadModelByPath(c.path);
-          refreshChain();
-        });
-        caps.appendChild(cr);
-      });
     }
 
     row.addEventListener("click", async () => {
       const opening = !caps || caps.hidden;
       if (opening) { await loadModelByPath(g.defaultPath); refreshChain(); }
-      if (caps) { caps.hidden = !caps.hidden; gear.classList.toggle("open"); }
+      if (caps) {
+        if (opening && !caps.dataset.built) { buildCaps(caps, g); caps.dataset.built = "1"; }
+        caps.hidden = !caps.hidden;
+        gear.classList.toggle("open");
+      }
     });
 
     gear.appendChild(row);
     if (caps) gear.appendChild(caps);
-    listEl.appendChild(gear);
+    frag.appendChild(gear);
   });
+  listEl.appendChild(frag);
   $("model-count").textContent = groups.length + (groups.length === 1 ? " equipo" : " equipos");
 }
 
@@ -363,6 +375,8 @@ function buildLadder(id) {
 function setMeter(id, level) {
   const el = $(id); if (!el) return;
   const lit = Math.round(Math.max(0, Math.min(1, level)) * LAD_N);
+  if (el._lit === lit) return;   // sin cambios -> no tocar el DOM
+  el._lit = lit;
   const segs = el.children;
   for (let i = 0; i < segs.length; i++)
     segs[i].className = i < lit ? (i >= LAD_N - 2 ? "r" : i >= LAD_N - 5 ? "y" : "g") : "";
@@ -370,9 +384,15 @@ function setMeter(id, level) {
 buildLadder("in-ladder");
 buildLadder("out-ladder");
 
+let _lastHz = -1;
 function updateTuner(hz) {
   const noteEl = $("t-note"), needle = $("t-needle"), hzEl = $("t-hz");
-  if (!hz || hz < 20) { noteEl.textContent = "—"; needle.style.left = "50%"; needle.style.background = "#3a342c"; hzEl.textContent = ""; return; }
+  if (!hz || hz < 20) {
+    if (_lastHz === 0) return;   // ya en silencio -> no re-escribir cada frame
+    _lastHz = 0;
+    noteEl.textContent = "—"; needle.style.left = "50%"; needle.style.background = "#3a342c"; hzEl.textContent = ""; return;
+  }
+  _lastHz = hz;
   const midi = 69 + 12 * Math.log2(hz / 440), nearest = Math.round(midi), cents = (midi - nearest) * 100;
   noteEl.innerHTML = NOTES[((nearest % 12) + 12) % 12] + '<span style="font-size:14px;color:#9b8a6c">' + (Math.floor(nearest / 12) - 1) + "</span>";
   needle.style.left = Math.max(2, Math.min(98, 50 + cents)) + "%";

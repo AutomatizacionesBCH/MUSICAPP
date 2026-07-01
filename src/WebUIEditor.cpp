@@ -246,7 +246,7 @@ WebUIEditor::WebUIEditor (MusicAppAudioProcessor& p)
     setSize (1320, 700);   // reskin pedalboard: topbar(64, con medidores+tuner) + main(498)
 
     mPitchBuf.assign (2048, 0.0f);
-    startTimerHz (24);   // medidores + afinador
+    startTimerHz (15);   // medidores + afinador (bajado de 24 -> menos repaints del WebView)
 }
 
 WebUIEditor::~WebUIEditor()
