@@ -184,6 +184,13 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
   RPC Supabase `search_tones_a2`, `order_by:"downloads-all-time"`). Bajado con Playwright `request` + Bearer
   Secret Key (`Scrapper/.env`), rate-limit ~70/min + retry 403/429. La app apunta ahí vía `modelLibraryFolder`
   en `%APPDATA%\Music App\Music App.settings`.
+- **Reskin Pedalboard/Tolex ✅ (2026-06-30):** UI rediseñada (mockup B elegido por el usuario, generado con un
+  workflow de 3 diseñadores + render Playwright). Look de gear real: **cabezal Fender** con perillas chickenhead
+  (Gain/Bass/Mid/Treble/Pres/Master — decorativas por ahora, el NAM es caja negra), **stompbox Drive verde**,
+  **cab con mic**, FX plateados, jacks IN/OUT, browser agrupado con badges A2 verdes, medidores VU + tuner.
+  Paleta cálida (tolex/cream/amber). `ui/` reescrito preservando todo el cableado (native fns, relays, cadena
+  dinámica, knobs `.dial/.cap` con `--arc/--rot`). Layout: **browser izquierda (fijo) + cadena derecha (scroll)**.
+  Pendiente: barra inferior (VU/tuner) queda bajo el fold por el gotcha de altura del WebView.
 
 ### Gotchas de la UI WebView (¡no perder tiempo de nuevo!)
 - **El WebView NO maneja la altura del viewport de forma estándar.** Fijar `body`/`html` height (por CSS
@@ -194,10 +201,18 @@ el riesgo legal y elimina la necesidad de pensar en App Stores o licencias comer
 - **Strings C++ → JS por funciones nativas (JSON) deben ser ASCII.** Un `·`/`ó` en un `displayName` o
   categoría sale mojibake (`Â·`, `Ã³`) en el WebView. El texto en HTML/CSS/JS (servido como recurso UTF-8)
   sí soporta acentos/entidades. → nombres de bloque y categorías en ASCII.
-- **`juce_add_binary_data` regenera los assets en *configure*, NO en build.** Tras editar
-  `ui/*.html|css|js` hay que **reconfigurar** (`cmake -S . -B build/app …`) o el HTML/CSS/JS embebido
-  queda viejo. `build.ps1` siempre reconfigura, así que por ahí no falla. Para iterar rápido: borrar
-  `build/app/**/BinaryData*.cpp` + reconfigurar fuerza la regeneración.
+- **`juce_add_binary_data`: el reconfigure NO regenera por cambio de CONTENIDO** (solo si cambia la lista de
+  archivos). Tras editar `ui/*.html|css|js`, `cmake -S . -B build/app` suele dejar el HTML/CSS/JS embebido
+  VIEJO (verificado en vivo: el `.exe` seguía con el CSS anterior). **Fix seguro:** borrar
+  `build/app/juce_binarydata_MusicAppAssets` + `build/app/MusicAppAssets.dir` y recién reconfigurar+build.
+  (Verificar: `Select-String "mi-cambio" build/app/juce_binarydata_*/JuceLibraryCode/BinaryData*.cpp`.)
+- **WebView2 cachea los recursos del resource provider** aunque borres `%TEMP%/MusicAppWebView2`. JUCE no
+  deja poner headers HTTP (`Resource` = bytes + mime). **Cache-bust por URL:** en `index.html` linkear
+  `style.css?v=N` / `app.js?v=N` (el `provide()` ya corta en `?`), **subiendo N** en cada cambio de UI.
+- **Layout que ENTRA siempre:** el WebView tiene un desfase raro entre viewport de layout (lo que mide
+  `innerWidth`) y lo visible → un panel a la derecha con ancho fijo se corta. **Solución probada:** el que
+  puede scrollear/cortarse va a la DERECHA (la cadena, `overflow-x:auto`), y el que debe verse siempre
+  (browser) a la IZQUIERDA con `order:-1` + ancho fijo. NO usar auto-zoom por `visualViewport` (agranda ×~1.9).
 - **El viewport del WebView no tiene altura definida** → `height:100%`, `100vh` y `position:fixed`
   (bottom) NO posicionan bien (la barra se empuja fuera de la vista). **Usar flujo normal del documento**
   (la barra fluye tras la cadena); evitar layouts dependientes de la altura del viewport.
